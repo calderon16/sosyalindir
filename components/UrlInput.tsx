@@ -11,7 +11,14 @@ interface UrlInputProps {
 }
 
 /**
- * Ana sayfa büyük URL girdi alanı ve yüklenme durumu yönetimi bileşeni
+ * Girdi içindeki boşlukları ve görünmez Unicode karakterlerini temizler
+ */
+function cleanUrlInput(val: string): string {
+  return val.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
+}
+
+/**
+ * Ana sayfa büyük URL girdi alanı ve canlı platform algılama bileşeni
  */
 export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
   const [url, setUrl] = useState("");
@@ -20,11 +27,12 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
 
   // Input değiştikçe canlı platform tespiti
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setUrl(val);
+    const rawVal = e.target.value;
+    setUrl(rawVal);
     
+    const cleaned = cleanUrlInput(rawVal);
     startTransition(() => {
-      setDetectedPlatform(detectPlatform(val));
+      setDetectedPlatform(detectPlatform(cleaned));
     });
   };
 
@@ -34,7 +42,8 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
       const text = await navigator.clipboard.readText();
       if (text) {
         setUrl(text);
-        setDetectedPlatform(detectPlatform(text));
+        const cleaned = cleanUrlInput(text);
+        setDetectedPlatform(detectPlatform(cleaned));
       }
     } catch {
       // Pano izni olmaması durumunda hata fırlatmayı engelle
@@ -50,10 +59,11 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
   // Form gönderme
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim() || isLoading) return;
+    const cleaned = cleanUrlInput(url);
+    if (!cleaned || isLoading) return;
     
     if (onResolve) {
-      onResolve(url.trim());
+      onResolve(cleaned);
     }
   };
 
@@ -105,7 +115,7 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
           {/* Sağ: İndir Butonu & Yüklenme Durumu */}
           <button
             type="submit"
-            disabled={!url.trim() || isLoading}
+            disabled={!cleanUrlInput(url) || isLoading}
             className="w-full sm:w-auto px-7 py-3.5 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 active:scale-95 disabled:opacity-60 disabled:pointer-events-none transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 min-w-[170px]"
           >
             {isLoading ? (

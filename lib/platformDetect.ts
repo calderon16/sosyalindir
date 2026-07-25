@@ -16,24 +16,26 @@ export interface PlatformConfig {
 }
 
 /**
- * Desteklenen platformlara ait regex desenleri
+ * Desteklenen platformlara ait genişletilmiş, gerçek dünya uyumlu regex desenleri.
+ * (http/https protokol takısı isteğe bağlıdır; query parametreleri ve mobil kısa linkler desteklenir)
  */
 const PATTERNS: Record<Exclude<PlatformType, "unknown">, RegExp> = {
-  // Instagram: instagram.com/reel/..., instagram.com/p/..., instagram.com/reels/...
-  instagram: /https?:\/\/(www\.)?instagram\.com\/(reel|reels|p|tv|share)\/[\w.-]+/i,
+  // Instagram: instagram.com/reel/..., instagram.com/reels/..., instagram.com/p/..., instagram.com/share/..., m.instagram.com
+  instagram: /^(https?:\/\/)?(www\.|m\.)?instagram\.com\/(reel|reels|p|tv|share)\/[^/\s]+/i,
   
-  // TikTok: tiktok.com/@user/video/..., vm.tiktok.com/..., vt.tiktok.com/...
-  tiktok: /https?:\/\/(www\.|vm\.|vt\.|t\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|[\w.-]+)/i,
+  // TikTok: tiktok.com/@user/video/..., vm.tiktok.com/..., vt.tiktok.com/..., tiktok.com/t/..., m.tiktok.com/v/...
+  tiktok: /^(https?:\/\/)?(www\.|vm\.|vt\.|t\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/[\w.-]+|v\/\d+|[\w.-]+)/i,
   
-  // YouTube Shorts: youtube.com/shorts/..., youtu.be/...
-  youtube: /https?:\/\/(www\.)?(youtube\.com\/shorts\/[\w-]+|youtu\.be\/[\w-]+)/i,
+  // YouTube Shorts: youtube.com/shorts/..., m.youtube.com/shorts/..., youtu.be/...
+  youtube: /^(https?:\/\/)?(www\.|m\.)?(youtube\.com\/shorts\/[^\s/?#]+|youtu\.be\/[^\s/?#]+)/i,
   
-  // Facebook Reels / Video: facebook.com/reel/..., facebook.com/watch/..., fb.watch/...
-  facebook: /https?:\/\/(www\.|web\.|m\.|fb\.)?(facebook\.com\/(reel|reels|watch|share\/r|.+?\/videos)\/[\w.-]+|fb\.watch\/[\w.-]+)/i,
+  // Facebook Reels & Video: facebook.com/reel/..., facebook.com/watch/..., fb.watch/..., facebook.com/share/r/...
+  facebook: /^(https?:\/\/)?(www\.|web\.|m\.|fb\.)?(facebook\.com\/(reel|reels|watch|share\/r|.+?\/videos|\?v=)|fb\.watch\/)/i,
 };
 
 /**
  * Verilen bir URL string'inin hangi sosyal medya platformuna ait olduğunu döndürür.
+ * Girdi içindeki boşluklar ve görünmez karakterler (Zero-Width Space vb.) temizlenir.
  * 
  * @param url Kullanıcının yapıştırdığı URL metni
  * @returns "instagram" | "tiktok" | "youtube" | "facebook" | "unknown"
@@ -43,18 +45,23 @@ export function detectPlatform(url: string): PlatformType {
     return "unknown";
   }
 
-  const trimmedUrl = url.trim();
+  // Görünmez karakterleri (Unicode Zero-Width) ve sağ-sol boşlukları temizle
+  const cleanUrl = url.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
 
-  if (PATTERNS.instagram.test(trimmedUrl)) {
+  if (!cleanUrl) {
+    return "unknown";
+  }
+
+  if (PATTERNS.instagram.test(cleanUrl)) {
     return "instagram";
   }
-  if (PATTERNS.tiktok.test(trimmedUrl)) {
+  if (PATTERNS.tiktok.test(cleanUrl)) {
     return "tiktok";
   }
-  if (PATTERNS.youtube.test(trimmedUrl)) {
+  if (PATTERNS.youtube.test(cleanUrl)) {
     return "youtube";
   }
-  if (PATTERNS.facebook.test(trimmedUrl)) {
+  if (PATTERNS.facebook.test(cleanUrl)) {
     return "facebook";
   }
 
