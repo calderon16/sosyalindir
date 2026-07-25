@@ -5,22 +5,48 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const axios_1 = __importDefault(require("axios"));
+const fs_1 = __importDefault(require("fs"));
+const ytdlp_js_1 = require("../services/ytdlp.js");
 const router = (0, express_1.Router)();
 /**
- * GET /download?formatUrl=...&filename=...
- * Verilen direkt medya URL'ini istemciye sunucuda saklamadan doğrudan stream (pipe) eder.
+ * GET /download?formatUrl=...&filename=... VEYA /download?fileId=...&filename=...
+ * Medya dosyasını (uzaktan stream veya yerel birleştirilmiş dosya) istemciye sunar.
  */
 router.get("/download", async (req, res) => {
+    const fileId = req.query.fileId;
     const formatUrl = (req.query.formatUrl || req.query.url);
     const filename = req.query.filename || "sosyalindir-video.mp4";
+    const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
+    // 1. Durum: Yerel birleştirilmiş (temp merged) dosya indirmesi
+    if (fileId) {
+        const tempPath = (0, ytdlp_js_1.getTempFilePath)(fileId);
+        if (!tempPath) {
+            res.status(444).json({ error: "İstenen medya süresi dolmuş veya bulunamadı." });
+            return;
+        }
+        try {
+            const stats = fs_1.default.statSync(tempPath);
+            res.setHeader("Content-Type", "video/mp4");
+            res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
+            res.setHeader("Content-Length", String(stats.size));
+            const stream = fs_1.default.createReadStream(tempPath);
+            stream.pipe(res);
+            return;
+        }
+        catch (err) {
+            const error = err;
+            if (!res.headersSent) {
+                res.status(500).json({ error: `Yerel dosya okunamadı: ${error.message}` });
+            }
+            return;
+        }
+    }
+    // 2. Durum: Doğrudan uzaktan URL (proxy streaming)
     if (!formatUrl || typeof formatUrl !== "string") {
-        res.status(400).json({ error: "Geçerli bir 'formatUrl' parametresi gereklidir." });
+        res.status(400).json({ error: "Geçerli bir 'formatUrl' veya 'fileId' parametresi gereklidir." });
         return;
     }
     try {
-        // Güvenli dosya adı sanitization
-        const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
-        // Medya sunucusundan stream olarak veriyi al
         const response = await (0, axios_1.default)({
             method: "GET",
             url: formatUrl,
@@ -30,7 +56,6 @@ router.get("/download", async (req, res) => {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             },
         });
-        // İndirme header'larını ayarla
         const contentType = response.headers["content-type"];
         if (contentType) {
             res.setHeader("Content-Type", String(contentType));
@@ -43,7 +68,6 @@ router.get("/download", async (req, res) => {
         if (contentLength) {
             res.setHeader("Content-Length", String(contentLength));
         }
-        // Doğrudan yanıt nesnesine aktar (pipe)
         response.data.pipe(res);
     }
     catch (err) {

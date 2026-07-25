@@ -1,26 +1,54 @@
 import { Request, Response, Router } from "express";
 import axios from "axios";
+import fs from "fs";
+import { getTempFilePath } from "../services/ytdlp.js";
 
 const router = Router();
 
 /**
- * GET /download?formatUrl=...&filename=...
- * Verilen direkt medya URL'ini istemciye sunucuda saklamadan doğrudan stream (pipe) eder.
+ * GET /download?formatUrl=...&filename=... VEYA /download?fileId=...&filename=...
+ * Medya dosyasını (uzaktan stream veya yerel birleştirilmiş dosya) istemciye sunar.
  */
 router.get("/download", async (req: Request, res: Response): Promise<void> => {
+  const fileId = req.query.fileId as string;
   const formatUrl = (req.query.formatUrl || req.query.url) as string;
   const filename = (req.query.filename as string) || "sosyalindir-video.mp4";
 
+  const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
+
+  // 1. Durum: Yerel birleştirilmiş (temp merged) dosya indirmesi
+  if (fileId) {
+    const tempPath = getTempFilePath(fileId);
+    if (!tempPath) {
+      res.status(444).json({ error: "İstenen medya süresi dolmuş veya bulunamadı." });
+      return;
+    }
+
+    try {
+      const stats = fs.statSync(tempPath);
+      res.setHeader("Content-Type", "video/mp4");
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
+      res.setHeader("Content-Length", String(stats.size));
+
+      const stream = fs.createReadStream(tempPath);
+      stream.pipe(res);
+      return;
+    } catch (err: unknown) {
+      const error = err as Error;
+      if (!res.headersSent) {
+        res.status(500).json({ error: `Yerel dosya okunamadı: ${error.message}` });
+      }
+      return;
+    }
+  }
+
+  // 2. Durum: Doğrudan uzaktan URL (proxy streaming)
   if (!formatUrl || typeof formatUrl !== "string") {
-    res.status(400).json({ error: "Geçerli bir 'formatUrl' parametresi gereklidir." });
+    res.status(400).json({ error: "Geçerli bir 'formatUrl' veya 'fileId' parametresi gereklidir." });
     return;
   }
 
   try {
-    // Güvenli dosya adı sanitization
-    const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
-
-    // Medya sunucusundan stream olarak veriyi al
     const response = await axios({
       method: "GET",
       url: formatUrl,
@@ -31,7 +59,6 @@ router.get("/download", async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // İndirme header'larını ayarla
     const contentType = response.headers["content-type"];
     if (contentType) {
       res.setHeader("Content-Type", String(contentType));
@@ -46,7 +73,6 @@ router.get("/download", async (req: Request, res: Response): Promise<void> => {
       res.setHeader("Content-Length", String(contentLength));
     }
 
-    // Doğrudan yanıt nesnesine aktar (pipe)
     response.data.pipe(res);
   } catch (err: unknown) {
     const error = err as Error;
