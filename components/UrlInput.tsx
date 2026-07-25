@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState } from "react";
 import { detectPlatform, PlatformType } from "@/lib/platformDetect";
 import { PlatformBadge } from "@/components/PlatformBadge";
-import { ArrowRight, Clipboard, Loader2, X, Download } from "lucide-react";
+import { Download, Loader2, Clipboard, X, ArrowRight, AlertCircle, Sparkles } from "lucide-react";
 
 interface UrlInputProps {
   onResolve?: (url: string) => void;
@@ -11,52 +11,42 @@ interface UrlInputProps {
 }
 
 /**
- * Girdi içindeki boşlukları ve görünmez Unicode karakterlerini temizler
+ * Girdi metnini temizler: Sıfır genişlikli boşlukları, gizli unicode karakterleri ve boşlukları siler.
  */
-function cleanUrlInput(val: string): string {
-  return val.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
+function cleanUrlInput(text: string): string {
+  if (!text) return "";
+  return text.trim().replace(/[\u200B-\u200D\uFEFF]/g, "");
 }
 
-/**
- * Ana sayfa büyük URL girdi alanı ve canlı platform algılama bileşeni
- */
 export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
   const [url, setUrl] = useState("");
   const [detectedPlatform, setDetectedPlatform] = useState<PlatformType>("unknown");
-  const [, startTransition] = useTransition();
 
-  // Input değiştikçe canlı platform tespiti
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawVal = e.target.value;
+    const val = cleanUrlInput(rawVal);
     setUrl(rawVal);
-    
-    const cleaned = cleanUrlInput(rawVal);
-    startTransition(() => {
-      setDetectedPlatform(detectPlatform(cleaned));
-    });
+    setDetectedPlatform(detectPlatform(val));
   };
 
-  // Panodan yapıştırma
-  const handlePaste = async () => {
-    try {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        setUrl(text);
-        const cleaned = cleanUrlInput(text);
-        setDetectedPlatform(detectPlatform(cleaned));
-      }
-    } catch {
-      // Pano izni olmaması durumunda hata fırlatmayı engelle
-    }
-  };
-
-  // Temizleme
   const handleClear = () => {
     setUrl("");
     setDetectedPlatform("unknown");
   };
 
-  // Form gönderme
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const cleaned = cleanUrlInput(text);
+      if (cleaned) {
+        setUrl(cleaned);
+        setDetectedPlatform(detectPlatform(cleaned));
+      }
+    } catch (err) {
+      console.error("Panodan yapıştırma başarısız:", err);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = cleanUrlInput(url);
@@ -123,7 +113,7 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                <span>Bilgiler alınıyor...</span>
+                <span>Hazırlanıyor...</span>
               </>
             ) : (
               <>
@@ -136,18 +126,38 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
         </div>
       </div>
 
-      {/* Algılanan Platform Rozeti */}
-      {detectedPlatform !== "unknown" && !isLoading && (
-        <div className="flex items-center justify-center gap-2 animate-fadeIn">
-          <span className="text-xs text-slate-400">Algılanan Platform:</span>
-          <PlatformBadge platform={detectedPlatform} />
+      {/* Yüklenme Süresinde Kullanıcı Bilgilendirme Notu */}
+      {isLoading && (
+        <div className="flex items-center justify-center gap-2 text-xs text-emerald-400/90 animate-pulse pt-1">
+          <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+          <span>Video yüksek kalite ve evrensel cihaz uyumluluğu için hazırlanıyor...</span>
         </div>
       )}
 
-      {/* YouTube Shorts Yakında Ekleniyor Uyarısı */}
+      {/* Algılanan Platform Rozeti */}
+      {detectedPlatform !== "unknown" && !isLoading && (
+        <div className="flex items-center justify-between px-2 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">Algılanan Platform:</span>
+            <PlatformBadge platform={detectedPlatform} />
+          </div>
+
+          <span className="text-slate-500 hidden sm:inline">
+            Otomatik bağlantı doğrulaması aktif
+          </span>
+        </div>
+      )}
+
+      {/* YouTube Shorts Geçici Uyarı Banner'ı */}
       {isYouTube && (
-        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm text-center font-medium animate-fadeIn flex items-center justify-center gap-2">
-          <span>🚧 YouTube Shorts desteği yakında ekleniyor — şimdilik Instagram, TikTok ve Facebook Reels linklerini indirebilirsin.</span>
+        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm animate-fadeIn">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold block mb-0.5">YouTube Shorts Desteği Yakında 🚧</span>
+            <span>
+              YouTube bot koruması nedeniyle Shorts indirme özelliği şu anda geliştirme aşamasındadır. Şimdilik <strong>Instagram Reels</strong>, <strong>TikTok</strong> ve <strong>Facebook Reels</strong> videolarını sorunsuz indirebilirsiniz.
+            </span>
+          </div>
         </div>
       )}
     </form>
