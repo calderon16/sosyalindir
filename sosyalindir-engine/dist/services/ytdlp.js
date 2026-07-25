@@ -47,6 +47,8 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
             "--no-warnings",
             "--no-playlist",
             "--skip-download",
+            "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : platform === "instagram" ? "https://www.instagram.com/" : "https://www.facebook.com/",
             videoUrl,
         ], {
             maxBuffer: 15 * 1024 * 1024,
@@ -117,6 +119,8 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
                 "--postprocessor-args", "ffmpeg:-c copy",
                 "--no-warnings",
                 "--no-playlist",
+                "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : "https://www.google.com/",
                 "-o", outputPath,
                 videoUrl,
             ], { timeout: 35000 });

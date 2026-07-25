@@ -67,6 +67,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         "--no-warnings",
         "--no-playlist",
         "--skip-download",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : platform === "instagram" ? "https://www.instagram.com/" : "https://www.facebook.com/",
         videoUrl,
       ],
       {
@@ -152,6 +154,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
           "--postprocessor-args", "ffmpeg:-c copy",
           "--no-warnings",
           "--no-playlist",
+          "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : "https://www.google.com/",
           "-o", outputPath,
           videoUrl,
         ],
