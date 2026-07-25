@@ -18,11 +18,14 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 // JSON ve URL encoded gövde ayrıştırıcılar
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-// CORS Konfigürasyonu (Sadece FRONTEND_URL kökenine izin ver)
+// CORS Konfigürasyonu (FRONTEND_URL, Vercel domainleri ve sunucu isteklerine izin ver)
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        // Sunucular arası istekler veya dev ortamı için boş origin kontrolü
-        if (!origin || origin === FRONTEND_URL || process.env.NODE_ENV !== "production") {
+        if (!origin ||
+            origin === FRONTEND_URL ||
+            origin.includes("vercel.app") ||
+            origin.includes("localhost") ||
+            process.env.NODE_ENV !== "production") {
             callback(null, true);
         }
         else {
