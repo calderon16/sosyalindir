@@ -24,7 +24,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-xs text-slate-400 max-w-md">
-              Instagram, TikTok, YouTube Shorts ve Facebook Reels videolarını filigransız ve orijinal kalitede anında indirin.
+              Instagram, TikTok ve Facebook Reels videolarını filigransız ve orijinal kalitede anında indirin (YouTube Shorts yakında).
             </p>
           </div>
 

@@ -86,7 +86,7 @@ export default function HomePage() {
         {/* Desteklenen Platformlar Alt Yazısı */}
         <div className="pt-2 flex flex-col items-center gap-3">
           <p className="text-xs font-medium text-slate-400 flex items-center justify-center gap-1.5 flex-wrap">
-            <span>Instagram, TikTok, YouTube Shorts ve Facebook Reels destekleniyor</span>
+            <span>Instagram, TikTok ve Facebook Reels destekleniyor (YouTube Shorts yakında)</span>
           </p>
 
           <div className="flex items-center justify-center gap-4 text-slate-500 text-xs">
@@ -100,7 +100,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-1.5 hover:text-red-400 transition-colors">
               <Youtube className="w-4 h-4" />
-              <span>Shorts</span>
+              <span>Shorts (Yakında)</span>
             </div>
             <div className="flex items-center gap-1.5 hover:text-blue-400 transition-colors">
               <Facebook className="w-4 h-4" />
