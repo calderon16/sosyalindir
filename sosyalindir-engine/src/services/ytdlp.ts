@@ -53,11 +53,53 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 /**
+ * FFmpeg / yt-dlp stderr çıktısından banner metinlerini temizler ve
+ * GERÇEK hata mesajını (son anlamlı satırı) ayıklar.
+ */
+function extractCleanErrorMessage(err: unknown): string {
+  const errorObj = err as { message?: string; stderr?: string };
+  const rawStderr = errorObj.stderr || errorObj.message || "";
+
+  if (!rawStderr.trim()) {
+    return "Bilinmeyen medya işleme hatası";
+  }
+
+  // Stderr satırlarını böl ve FFmpeg / yt-dlp banner'larını filtrele
+  const lines = rawStderr
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => {
+      if (!line) return false;
+      const lower = line.toLowerCase();
+      if (lower.startsWith("ffmpeg version")) return false;
+      if (lower.startsWith("built with gcc")) return false;
+      if (lower.startsWith("configuration:")) return false;
+      if (lower.startsWith("libavutil")) return false;
+      if (lower.startsWith("libavcodec")) return false;
+      if (lower.startsWith("libavformat")) return false;
+      if (lower.startsWith("libavdevice")) return false;
+      if (lower.startsWith("libavfilter")) return false;
+      if (lower.startsWith("libswscale")) return false;
+      if (lower.startsWith("libswresample")) return false;
+      if (lower.startsWith("libpostproc")) return false;
+      if (lower.startsWith("copyright (c)")) return false;
+      return true;
+    });
+
+  if (lines.length > 0) {
+    // Son 2 anlamlı satırı birleştir (gerçek hata en sondadır)
+    return lines.slice(-2).join(" | ");
+  }
+
+  return errorObj.message?.split("\n")[0] || "Bilinmeyen sunucu hatası";
+}
+
+/**
  * ffprobe kullanarak video dosyasının video codec'ini detaylı ve güvenli tespit eder
  */
 async function checkVideoCodec(filePath: string): Promise<string> {
   try {
-    const { stdout, stderr } = await execFileAsync("ffprobe", [
+    const { stdout } = await execFileAsync("ffprobe", [
       "-v", "error",
       "-select_streams", "v:0",
       "-show_entries", "stream=codec_name",
@@ -65,17 +107,35 @@ async function checkVideoCodec(filePath: string): Promise<string> {
       filePath
     ]);
 
-    console.log(`[ffprobe raw stdout]: ${stdout.trim()}`);
-    if (stderr && stderr.trim()) {
-      console.log(`[ffprobe raw stderr]: ${stderr.trim()}`);
-    }
-
     const parsed = JSON.parse(stdout);
-    const codecName = parsed?.streams?.[0]?.codec_name?.toLowerCase() || "";
-    return codecName;
-  } catch (err: any) {
-    console.error(`[ffprobe error]:`, err.message || err);
+    return parsed?.streams?.[0]?.codec_name?.toLowerCase() || "";
+  } catch {
     return "unknown";
+  }
+}
+
+/**
+ * FFmpeg transcode komutunu sadece exit code 0 durumunda başarılı sayar.
+ * Stderr içeriğindeki banner bilgileri başarı durumunu etkilemez.
+ */
+async function runFfmpegTranscode(inputPath: string, outputPath: string): Promise<void> {
+  console.log(`[ffmpeg] Transcode başlatıldı: ${inputPath} -> ${outputPath}`);
+  try {
+    await execFileAsync("ffmpeg", [
+      "-y",
+      "-i", inputPath,
+      "-c:v", "libx264",
+      "-preset", "fast",
+      "-crf", "18",
+      "-c:a", "copy",
+      outputPath
+    ], { timeout: 60000 });
+
+    console.log(`[ffmpeg] Transcode başarıyla (exitCode 0) tamamlandı.`);
+  } catch (err: any) {
+    const cleanErr = extractCleanErrorMessage(err);
+    console.error(`[ffmpeg] Transcode başarısız oldu: ${cleanErr}`);
+    throw new Error(`FFmpeg video dönüştürme hatası: ${cleanErr}`);
   }
 }
 
@@ -154,23 +214,11 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
 
     // HEVC (H.265) veya H.264 dışındaki uyumsuz codec'ler için ffmpeg transcode tetikle
     if (isHevc) {
-      console.log(`[ytdlp service] HEVC (${detectedCodec}) tespit edildi! Evrensel cihaz uyumluluğu için H.264 (libx264) transcoding BAŞLATILDI...`);
+      console.log(`[ytdlp service] HEVC (${detectedCodec}) tespit edildi! H.264 (libx264) transcoding BAŞLATILDI...`);
       const transcodePath = path.join(TEMP_DIR, `${fileId}_h264.mp4`);
       const transcodeStart = Date.now();
 
-      const transcodeResult = await execFileAsync("ffmpeg", [
-        "-y",
-        "-i", outputPath,
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "18",
-        "-c:a", "copy",
-        transcodePath
-      ], { timeout: 45000 });
-
-      if (transcodeResult.stderr) {
-        console.log(`[ffmpeg transcode stderr]: ${transcodeResult.stderr.substring(0, 300)}`);
-      }
+      await runFfmpegTranscode(outputPath, transcodePath);
 
       const transcodeDuration = Date.now() - transcodeStart;
       console.log(`[ytdlp service] H.264 transcode BAŞARIYLA tamamlandı (Süre: ${transcodeDuration}ms)`);
@@ -212,17 +260,16 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
       fileId,
     };
   } catch (err: unknown) {
-    const error = err as { message?: string; stderr?: string };
-    const detail = error.stderr || error.message || "Bilinmeyen yt-dlp hatası";
+    const cleanDetail = extractCleanErrorMessage(err);
     
-    if (detail.includes("Private video") || detail.includes("login")) {
+    if (cleanDetail.includes("Private video") || cleanDetail.includes("login")) {
       throw new Error("Bu video gizli ya da erişime kapalı.");
     }
-    if (detail.includes("Video unavailable") || detail.includes("Not Found")) {
+    if (cleanDetail.includes("Video unavailable") || cleanDetail.includes("Not Found")) {
       throw new Error("Video bulunamadı veya silinmiş olabilir.");
     }
 
-    throw new Error(`Video çözümlenemedi: ${detail.split("\n")[0]}`);
+    throw new Error(`Video çözümlenemedi: ${cleanDetail}`);
   }
 }
 
