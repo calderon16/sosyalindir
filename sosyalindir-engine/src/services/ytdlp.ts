@@ -28,7 +28,7 @@ export interface ResolvedVideoInfo {
   fileId?: string;
 }
 
-// Geçici birleştirilmiş dosyaların saklanacağı dizin
+// Geçici birleştirilmiş/indirilmiş dosyaların saklanacağı dizin
 const TEMP_DIR = path.join(os.tmpdir(), "sosyalindir_temp_media");
 if (!fs.existsSync(TEMP_DIR)) {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -53,6 +53,7 @@ setInterval(() => {
 
 /**
  * yt-dlp binary'sini child_process ile çağırarak video metadatasını ve sesli formatları çözer.
+ * TikTok veya CDN kilitli platformlar için yt-dlp ile doğrudan yerel indirme (stream copy) gerçekleştirir.
  * 
  * @param videoUrl Çözümlenecek sosyal medya bağlantısı
  * @param platform Platform kimliği
@@ -101,10 +102,13 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
       return hasAudio && hasVideo;
     });
 
-    const parsedFormats: VideoFormatOption[] = [];
+    // TikTok CDN linkleri IP kilitli/imzalı olduğundan doğrudan yt-dlp ile yerel indirme yapılır
+    const isTikTok = platform === "tiktok" || videoUrl.includes("tiktok.com");
 
-    if (combinedFormats.length > 0) {
-      // Sesi ve görüntüsü hazır birleşik formatlar bulundu
+    if (combinedFormats.length > 0 && !isTikTok) {
+      // Instagram / Facebook için hazır ses+görüntü birleşik formatlar
+      const parsedFormats: VideoFormatOption[] = [];
+
       for (const fmt of combinedFormats) {
         const isWatermarkless =
           fmt.format_note?.toLowerCase().includes("no watermark") ||
@@ -124,7 +128,6 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         });
       }
 
-      // En yüksek kaliteli birleşik format seçeneği
       const bestCombined = parsedFormats[parsedFormats.length - 1];
 
       return {
@@ -138,14 +141,13 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         formats: parsedFormats.slice(-5),
       };
     } else {
-      // Birleşik format yok (ses ve görüntü ayrı akışlarda) -> stream copy (ffmpeg -c copy) ile birleştir
-      console.log(`[ytdlp service] Ayrı ses/video akışları tespit edildi. Stream copy (muxing) başlatılıyor: ${videoUrl}`);
+      // TikTok veya ayrı akışlı videolar -> yt-dlp ile sunucuda güvenli indirme (stream copy - sıfır kalite kaybı)
+      console.log(`[ytdlp service] Sunucuda güvenli indirme (stream copy) başlatılıyor: ${videoUrl}`);
       
       const fileId = `${id}_${Date.now()}`;
       const outputFilename = `${fileId}.mp4`;
       const outputPath = path.join(TEMP_DIR, outputFilename);
 
-      // yt-dlp -f "bestvideo+bestaudio" --merge-output-format mp4 --postprocessor-args "ffmpeg:-c copy"
       await execFileAsync(
         "yt-dlp",
         [
@@ -155,7 +157,7 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
           "--no-warnings",
           "--no-playlist",
           "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : "https://www.google.com/",
+          "--referer", isTikTok ? "https://www.tiktok.com/" : "https://www.google.com/",
           "-o", outputPath,
           videoUrl,
         ],
@@ -163,14 +165,16 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
       );
 
       const elapsed = Date.now() - startTime;
-      console.log(`[ytdlp service] Stream copy birleştirme tamamlandı (${elapsed}ms): ${outputPath}`);
+      console.log(`[ytdlp service] Güvenli yerel indirme tamamlandı (${elapsed}ms): ${outputPath}`);
 
       const stats = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
+      const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(title.substring(0, 30))}.mp4`;
+
       const localFormat: VideoFormatOption = {
         formatId: "merged_best",
         ext: "mp4",
         resolution: "1080p HD",
-        url: `/download?fileId=${fileId}&filename=${encodeURIComponent(title.substring(0, 30))}.mp4`,
+        url: downloadPath,
         filesize: stats?.size,
         isWatermarkless: true,
         hasAudio: true,
@@ -183,7 +187,7 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         thumbnail,
         duration,
         platform,
-        downloadUrl: localFormat.url,
+        downloadUrl: downloadPath,
         formats: [localFormat],
         fileId,
       };
@@ -204,7 +208,7 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
 }
 
 /**
- * Geçici olarak oluşturulmuş birleştirilmiş dosya yolunu döndürür
+ * Geçici olarak oluşturulmuş birleştirilmiş/indirilmiş dosya yolunu döndürür
  */
 export function getTempFilePath(fileId: string): string | null {
   const safeFileId = path.basename(fileId);
