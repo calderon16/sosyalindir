@@ -42,7 +42,12 @@ router.get("/download", async (req, res) => {
     const fileId = req.query.fileId;
     const formatUrl = (req.query.formatUrl || req.query.url);
     const filename = req.query.filename || "sosyalindir-video.mp4";
+    const resolvedTimestamp = req.query.t ? parseInt(req.query.t, 10) : 0;
     const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, "_");
+    if (resolvedTimestamp > 0) {
+        const timeDiffSeconds = ((Date.now() - resolvedTimestamp) / 1000).toFixed(2);
+        console.log(`[Download Proxy] /resolve ve /download arasındaki zaman farkı: ${timeDiffSeconds} saniye`);
+    }
     // 1. Durum: Yerel birleştirilmiş (temp merged) dosya indirmesi
     if (fileId) {
         const tempPath = (0, ytdlp_js_1.getTempFilePath)(fileId);
@@ -74,7 +79,7 @@ router.get("/download", async (req, res) => {
     }
     try {
         const headers = buildCdnHeaders(formatUrl);
-        console.log(`[Download Proxy] Target URL: ${formatUrl}`);
+        console.log(`[Download Proxy] Target CDN URL: ${formatUrl}`);
         console.log(`[Download Proxy] Headers:`, JSON.stringify(headers, null, 2));
         const response = await (0, axios_1.default)({
             method: "GET",
@@ -98,11 +103,37 @@ router.get("/download", async (req, res) => {
         response.data.pipe(res);
     }
     catch (err) {
-        const error = err;
-        console.error("[Download Router Error]:", error.message);
+        let cdnResponseBody = "";
+        if (err.response && err.response.data) {
+            try {
+                if (typeof err.response.data.read === "function" || typeof err.response.data.on === "function") {
+                    const chunks = [];
+                    for await (const chunk of err.response.data) {
+                        chunks.push(Buffer.from(chunk));
+                    }
+                    cdnResponseBody = Buffer.concat(chunks).toString("utf-8");
+                }
+                else if (Buffer.isBuffer(err.response.data)) {
+                    cdnResponseBody = err.response.data.toString("utf-8");
+                }
+                else if (typeof err.response.data === "object") {
+                    cdnResponseBody = JSON.stringify(err.response.data);
+                }
+                else {
+                    cdnResponseBody = String(err.response.data);
+                }
+            }
+            catch {
+                cdnResponseBody = "Hata gövdesi okunamadı";
+            }
+        }
+        console.error(`[Download Router Error Status]: ${err.response?.status || "NO_STATUS"}`);
+        console.error(`[Download Router Error CDN Body]: ${cdnResponseBody}`);
         if (!res.headersSent) {
-            res.status(502).json({
-                error: `Medya dosyası indirilemedi: ${error.message}`,
+            res.status(err.response?.status || 502).json({
+                error: `Medya dosyası indirilemedi: ${err.message}`,
+                status: err.response?.status,
+                cdnResponse: cdnResponseBody,
             });
         }
     }
