@@ -37,9 +37,9 @@ async function handleResolve(url: string) {
     );
   }
 
-  // 2. Engine Servis URL'i
-  const engineBaseUrl = process.env.DOWNLOADER_ENGINE_URL || "http://localhost:4000";
-  const targetUrl = `${engineBaseUrl}/resolve?url=${encodeURIComponent(trimmedUrl)}`;
+  // 2. Engine Servis URL'i (Varsayılan olarak Railway canlı adresine düşer)
+  const engineBaseUrl = process.env.DOWNLOADER_ENGINE_URL || "https://sosyalindir-production.up.railway.app";
+  const targetUrl = `${engineBaseUrl.replace(/\/$/, "")}/resolve?url=${encodeURIComponent(trimmedUrl)}`;
 
   // 3. Backend Engine'e İstek At
   const engineRes = await fetch(targetUrl, {
