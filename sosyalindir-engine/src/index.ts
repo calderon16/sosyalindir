@@ -13,6 +13,9 @@ const PORT = parseInt(process.env.PORT || "4000", 10);
 const HOST = "0.0.0.0";
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
+// Reverse proxy (Railway) için trust proxy ayarı
+app.set("trust proxy", 1);
+
 // JSON ve URL encoded gövde ayrıştırıcılar
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
