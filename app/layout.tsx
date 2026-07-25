@@ -8,12 +8,15 @@ import { Footer } from "@/components/Footer";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sosyalindirapp.com"),
   title: "SosyalIndir — Instagram, TikTok, Shorts & Facebook Video İndirici",
   description: "Instagram Reels, TikTok, YouTube Shorts ve Facebook Reels videolarını filigransız, hızlı ve %100 ücretsiz orijinal kalitede indirin.",
   keywords: ["video indir", "instagram reels indir", "tiktok video indir", "youtube shorts indir", "facebook reels indir", "filigransız tiktok"],
   openGraph: {
     title: "SosyalIndir — Ücretsiz & Hızlı Sosyal Medya Video İndirici",
     description: "Instagram, TikTok, YouTube Shorts ve Facebook Reels videolarını filigransız ve orijinal kalitede indirin.",
+    url: "https://sosyalindirapp.com",
+    siteName: "SosyalIndir",
     type: "website",
   },
 };
