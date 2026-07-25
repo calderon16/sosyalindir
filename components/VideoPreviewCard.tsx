@@ -12,6 +12,7 @@ export interface VideoFormatOption {
   url: string;
   filesize?: number;
   isWatermarkless?: boolean;
+  hasAudio?: boolean;
 }
 
 export interface VideoMetaData {
@@ -23,6 +24,7 @@ export interface VideoMetaData {
   platform?: PlatformType;
   downloadUrl?: string;
   formats?: VideoFormatOption[];
+  fileId?: string;
 }
 
 interface VideoPreviewCardProps {
@@ -52,13 +54,27 @@ function formatDuration(seconds?: number): string {
 }
 
 /**
- * Backend engine /download proxy indirme bağlantısını oluşturur
+ * Backend engine indirme bağlantısını akıllı şekilde (lokal temp fileId vs. uzaktan CDN formatUrl) oluşturur
  */
-function getDownloadStreamUrl(formatUrl: string, title: string = "video"): string {
-  const engineBaseUrl = process.env.NEXT_PUBLIC_DOWNLOADER_ENGINE_URL || "http://localhost:4000";
+function getDownloadStreamUrl(rawUrl?: string, title: string = "video"): string {
+  if (!rawUrl) return "";
+
+  const engineBaseUrl = (process.env.NEXT_PUBLIC_DOWNLOADER_ENGINE_URL || "http://localhost:4000").replace(/\/$/, "");
   const safeTitle = title.slice(0, 30).replace(/[^a-zA-Z0-9]/g, "_");
   const filename = `sosyalindir_${safeTitle}.mp4`;
-  return `${engineBaseUrl}/download?formatUrl=${encodeURIComponent(formatUrl)}&filename=${encodeURIComponent(filename)}`;
+
+  // 1. Eğer URL halihazırda backend'in kendi /download?fileId=... adresi ise
+  if (rawUrl.startsWith("/download?") || rawUrl.startsWith("/download/")) {
+    return `${engineBaseUrl}${rawUrl}`;
+  }
+
+  // 2. Eğer URL tam bağımsız bir http(s) indirme linki ise
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+    return `${engineBaseUrl}/download?formatUrl=${encodeURIComponent(rawUrl)}&filename=${encodeURIComponent(filename)}`;
+  }
+
+  // 3. Göreli / varsayılan yol
+  return `${engineBaseUrl}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
 }
 
 /**
@@ -131,7 +147,7 @@ export function VideoPreviewCard({ data, onReset }: VideoPreviewCardProps) {
           <div className="space-y-1.5">
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Orijinal Yüksek Kalite</span>
+              <span>Orijinal Yüksek Kalite & Sesli</span>
             </div>
             {platform === "tiktok" && (
               <div className="flex items-center gap-1.5 text-xs text-slate-400">
