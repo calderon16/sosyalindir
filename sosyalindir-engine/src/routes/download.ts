@@ -11,7 +11,6 @@ const router = Router();
 function buildCdnHeaders(targetUrl: string): Record<string, string> {
   const lowercaseUrl = targetUrl.toLowerCase();
 
-  // Mobil Chrome / TikTok uyumlu varsayılan User-Agent
   let userAgent = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36";
   let referer = "https://www.google.com/";
 
@@ -79,6 +78,9 @@ router.get("/download", async (req: Request, res: Response): Promise<void> => {
 
   try {
     const headers = buildCdnHeaders(formatUrl);
+
+    console.log(`[Download Proxy] Target URL: ${formatUrl}`);
+    console.log(`[Download Proxy] Headers:`, JSON.stringify(headers, null, 2));
 
     const response = await axios({
       method: "GET",
