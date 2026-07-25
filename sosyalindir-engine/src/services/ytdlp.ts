@@ -53,26 +53,35 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 /**
- * ffprobe kullanarak video dosyasının video codec'ini tespit eder
+ * ffprobe kullanarak video dosyasının video codec'ini detaylı ve güvenli tespit eder
  */
 async function checkVideoCodec(filePath: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync("ffprobe", [
+    const { stdout, stderr } = await execFileAsync("ffprobe", [
       "-v", "error",
       "-select_streams", "v:0",
       "-show_entries", "stream=codec_name",
-      "-of", "default=noprintwrappers=1:nokey=1",
+      "-of", "json",
       filePath
     ]);
-    return stdout.trim().toLowerCase();
-  } catch {
+
+    console.log(`[ffprobe raw stdout]: ${stdout.trim()}`);
+    if (stderr && stderr.trim()) {
+      console.log(`[ffprobe raw stderr]: ${stderr.trim()}`);
+    }
+
+    const parsed = JSON.parse(stdout);
+    const codecName = parsed?.streams?.[0]?.codec_name?.toLowerCase() || "";
+    return codecName;
+  } catch (err: any) {
+    console.error(`[ffprobe error]:`, err.message || err);
     return "unknown";
   }
 }
 
 /**
  * yt-dlp binary'sini child_process ile çağırarak video metadatasını ve sesli formatları çözer.
- * H.264 codec'lerini önceliklendirir, yalnızca HEVC-only durumlarda H.264'e transcode eder.
+ * H.264 (AVC1) codec'lerini önceliklendirir, HEVC/H.265 durumlarında H.264'e transcode eder.
  * 
  * @param videoUrl Çözümlenecek sosyal medya bağlantısı
  * @param platform Platform kimliği
@@ -80,6 +89,8 @@ async function checkVideoCodec(filePath: string): Promise<string> {
 export async function resolveVideoWithYtDlp(videoUrl: string, platform: string): Promise<ResolvedVideoInfo> {
   try {
     const startTime = Date.now();
+    console.log(`[ytdlp service] Resolve başlatılıyor (${platform}): ${videoUrl}`);
+
     const { stdout } = await execFileAsync(
       "yt-dlp",
       [
@@ -110,146 +121,96 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
     const thumbnail = data.thumbnail || (Array.isArray(data.thumbnails) && data.thumbnails.length > 0 ? data.thumbnails[data.thumbnails.length - 1].url : "");
     const duration = data.duration || 0;
 
-    const rawFormats = Array.isArray(data.formats) ? data.formats : [];
-    
-    // Filtre: Yalnızca hem ses (acodec !== 'none') hem de görüntü (vcodec !== 'none') içeren "combined" formatlar
-    const combinedFormats = rawFormats.filter((fmt: any) => {
-      if (!fmt.url) return false;
-      if (fmt.ext === "mhtml" || fmt.format_id?.includes("storyboard")) return false;
-      const hasAudio = fmt.acodec && fmt.acodec !== "none";
-      const hasVideo = fmt.vcodec && fmt.vcodec !== "none";
-      return hasAudio && hasVideo;
-    });
+    const fileId = `${id}_${Date.now()}`;
+    const outputFilename = `${fileId}.mp4`;
+    const outputPath = path.join(TEMP_DIR, outputFilename);
 
     const isTikTok = platform === "tiktok" || videoUrl.includes("tiktok.com");
 
-    if (combinedFormats.length > 0 && !isTikTok) {
-      // Instagram / Facebook için hazır ses+görüntü birleşik formatlar
-      // H.264 öncelikli sıralama
-      const h264Formats = combinedFormats.filter((f: any) => 
-        f.vcodec?.toLowerCase().includes("avc1") || f.vcodec?.toLowerCase().includes("h264")
-      );
+    console.log(`[ytdlp service] İndirme (stream copy) başlatılıyor: ${outputPath}`);
 
-      const targetFormatsList = h264Formats.length > 0 ? h264Formats : combinedFormats;
-      const parsedFormats: VideoFormatOption[] = [];
+    // H.264 (avc1/h264) formatlarını öncelikli indir
+    await execFileAsync(
+      "yt-dlp",
+      [
+        "-f", "bestvideo[vcodec*='avc1']+bestaudio/bestvideo[vcodec*='h264']+bestaudio/bestvideo+bestaudio/best",
+        "--merge-output-format", "mp4",
+        "--postprocessor-args", "ffmpeg:-c copy",
+        "--no-warnings",
+        "--no-playlist",
+        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "--referer", isTikTok ? "https://www.tiktok.com/" : "https://www.google.com/",
+        "-o", outputPath,
+        videoUrl,
+      ],
+      { timeout: 40000 }
+    );
 
-      for (const fmt of targetFormatsList) {
-        const isWatermarkless =
-          fmt.format_note?.toLowerCase().includes("no watermark") ||
-          fmt.format_id?.toLowerCase().includes("nowatermark") ||
-          !fmt.format_note?.toLowerCase().includes("watermark");
+    // İndirilen dosyanın codec'ini ffprobe ile doğrula
+    const detectedCodec = await checkVideoCodec(outputPath);
+    console.log(`[ytdlp service] ffprobe ile tespit edilen video codec: '${detectedCodec}'`);
 
-        const resolution = fmt.resolution || (fmt.width && fmt.height ? `${fmt.width}x${fmt.height}` : "HD");
+    const isHevc = detectedCodec.includes("hevc") || detectedCodec.includes("h265") || detectedCodec.includes("hev1") || detectedCodec.includes("hvc1");
 
-        parsedFormats.push({
-          formatId: fmt.format_id || "default",
-          ext: fmt.ext || "mp4",
-          resolution,
-          url: fmt.url,
-          filesize: fmt.filesize || fmt.filesize_approx,
-          isWatermarkless,
-          hasAudio: true,
-          vcodec: fmt.vcodec,
-        });
+    // HEVC (H.265) veya H.264 dışındaki uyumsuz codec'ler için ffmpeg transcode tetikle
+    if (isHevc) {
+      console.log(`[ytdlp service] HEVC (${detectedCodec}) tespit edildi! Evrensel cihaz uyumluluğu için H.264 (libx264) transcoding BAŞLATILDI...`);
+      const transcodePath = path.join(TEMP_DIR, `${fileId}_h264.mp4`);
+      const transcodeStart = Date.now();
+
+      const transcodeResult = await execFileAsync("ffmpeg", [
+        "-y",
+        "-i", outputPath,
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "18",
+        "-c:a", "copy",
+        transcodePath
+      ], { timeout: 45000 });
+
+      if (transcodeResult.stderr) {
+        console.log(`[ffmpeg transcode stderr]: ${transcodeResult.stderr.substring(0, 300)}`);
       }
 
-      const bestCombined = parsedFormats[parsedFormats.length - 1];
+      const transcodeDuration = Date.now() - transcodeStart;
+      console.log(`[ytdlp service] H.264 transcode BAŞARIYLA tamamlandı (Süre: ${transcodeDuration}ms)`);
 
-      return {
-        id,
-        title,
-        author,
-        thumbnail,
-        duration,
-        platform,
-        downloadUrl: bestCombined.url,
-        formats: parsedFormats.slice(-5),
-      };
+      if (fs.existsSync(outputPath)) {
+        fs.unlinkSync(outputPath);
+      }
+      fs.renameSync(transcodePath, outputPath);
     } else {
-      // TikTok veya ayrı akışlı videolar -> H.264 öncelikli yt-dlp indirmesi
-      console.log(`[ytdlp service] Sunucuda H.264 öncelikli indirme başlatılıyor: ${videoUrl}`);
-      
-      const fileId = `${id}_${Date.now()}`;
-      const outputFilename = `${fileId}.mp4`;
-      const outputPath = path.join(TEMP_DIR, outputFilename);
-
-      // H.264 (avc1/h264) codec'lerini öncelikle seç, yoksa bestvideo seç
-      await execFileAsync(
-        "yt-dlp",
-        [
-          "-f", "bestvideo[vcodec^=avc1]+bestaudio/bestvideo[vcodec^=h264]+bestaudio/bestvideo+bestaudio/best",
-          "--merge-output-format", "mp4",
-          "--postprocessor-args", "ffmpeg:-c copy",
-          "--no-warnings",
-          "--no-playlist",
-          "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "--referer", isTikTok ? "https://www.tiktok.com/" : "https://www.google.com/",
-          "-o", outputPath,
-          videoUrl,
-        ],
-        { timeout: 40000 }
-      );
-
-      // İndirilen dosyanın codec'ini ffprobe ile doğrula
-      const detectedCodec = await checkVideoCodec(outputPath);
-      console.log(`[ytdlp service] İndirilen video codec: ${detectedCodec}`);
-
-      // SADECE HEVC (H.265) ise H.264'e transcode et
-      if (detectedCodec.includes("hevc") || detectedCodec.includes("h265")) {
-        console.log(`[ytdlp service] HEVC codec tespit edildi. Cihaz uyumluluğu için H.264 (libx264) transcoding başlatılıyor...`);
-        const transcodePath = path.join(TEMP_DIR, `${fileId}_h264.mp4`);
-        const transcodeStart = Date.now();
-
-        await execFileAsync("ffmpeg", [
-          "-y",
-          "-i", outputPath,
-          "-c:v", "libx264",
-          "-preset", "fast",
-          "-crf", "18",
-          "-c:a", "copy",
-          transcodePath
-        ], { timeout: 45000 });
-
-        const transcodeDuration = Date.now() - transcodeStart;
-        console.log(`[ytdlp service] H.264 transcode tamamlandı (${transcodeDuration}ms)`);
-
-        if (fs.existsSync(outputPath)) {
-          fs.unlinkSync(outputPath);
-        }
-        fs.renameSync(transcodePath, outputPath);
-      } else {
-        console.log(`[ytdlp service] Video zaten H.264 (${detectedCodec}), transcode adımı atlandı.`);
-      }
-
-      const elapsed = Date.now() - startTime;
-      console.log(`[ytdlp service] Medya hazırlığı tamamlandı (Toplam: ${elapsed}ms): ${outputPath}`);
-
-      const stats = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
-      const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(title.substring(0, 30))}.mp4`;
-
-      const localFormat: VideoFormatOption = {
-        formatId: "merged_best",
-        ext: "mp4",
-        resolution: "1080p HD",
-        url: downloadPath,
-        filesize: stats?.size,
-        isWatermarkless: true,
-        hasAudio: true,
-        vcodec: detectedCodec.includes("hevc") || detectedCodec.includes("h265") ? "h264_transcoded" : detectedCodec,
-      };
-
-      return {
-        id,
-        title,
-        author,
-        thumbnail,
-        duration,
-        platform,
-        downloadUrl: downloadPath,
-        formats: [localFormat],
-        fileId,
-      };
+      console.log(`[ytdlp service] Video zaten H.264/AVC (${detectedCodec}) uyumlu, ffmpeg transcode adımı ATLANDI.`);
     }
+
+    const elapsed = Date.now() - startTime;
+    console.log(`[ytdlp service] Medya hazırlığı tamamlandı (Toplam Süre: ${elapsed}ms): ${outputPath}`);
+
+    const stats = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
+    const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(title.substring(0, 30))}.mp4`;
+
+    const localFormat: VideoFormatOption = {
+      formatId: "merged_best",
+      ext: "mp4",
+      resolution: "1080p HD",
+      url: downloadPath,
+      filesize: stats?.size,
+      isWatermarkless: true,
+      hasAudio: true,
+      vcodec: isHevc ? "h264_transcoded" : detectedCodec,
+    };
+
+    return {
+      id,
+      title,
+      author,
+      thumbnail,
+      duration,
+      platform,
+      downloadUrl: downloadPath,
+      formats: [localFormat],
+      fileId,
+    };
   } catch (err: unknown) {
     const error = err as { message?: string; stderr?: string };
     const detail = error.stderr || error.message || "Bilinmeyen yt-dlp hatası";
