@@ -53,36 +53,35 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 /**
- * FFmpeg / yt-dlp stderr çıktısından banner metinlerini temizler ve
+ * FFmpeg / yt-dlp stderr çıktısından banner ve progress metinlerini temizler,
  * GERÇEK hata mesajını (son anlamlı satırı) ayıklar.
  */
 function extractCleanErrorMessage(err: unknown): string {
-  const errorObj = err as { message?: string; stderr?: string };
+  const errorObj = err as { message?: string; stderr?: string; signal?: string; code?: string };
   const rawStderr = errorObj.stderr || errorObj.message || "";
 
   if (!rawStderr.trim()) {
     return "Bilinmeyen medya işleme hatası";
   }
 
-  // Stderr satırlarını böl ve FFmpeg / yt-dlp banner'larını filtrele
+  // Stderr satırlarını böl, FFmpeg banner'larını ve progress (frame=, speed=) satırlarını filtrele
   const lines = rawStderr
     .split("\n")
     .map(line => line.trim())
     .filter(line => {
       if (!line) return false;
       const lower = line.toLowerCase();
-      if (lower.startsWith("ffmpeg version")) return false;
-      if (lower.startsWith("built with gcc")) return false;
-      if (lower.startsWith("configuration:")) return false;
-      if (lower.startsWith("libavutil")) return false;
-      if (lower.startsWith("libavcodec")) return false;
-      if (lower.startsWith("libavformat")) return false;
-      if (lower.startsWith("libavdevice")) return false;
-      if (lower.startsWith("libavfilter")) return false;
-      if (lower.startsWith("libswscale")) return false;
-      if (lower.startsWith("libswresample")) return false;
-      if (lower.startsWith("libpostproc")) return false;
-      if (lower.startsWith("copyright (c)")) return false;
+
+      // FFmpeg & System Banner Filtresi
+      if (lower.startsWith("ffmpeg version") || lower.startsWith("built with gcc") || lower.startsWith("configuration:")) return false;
+      if (lower.startsWith("libavutil") || lower.startsWith("libavcodec") || lower.startsWith("libavformat")) return false;
+      if (lower.startsWith("libavdevice") || lower.startsWith("libavfilter") || lower.startsWith("libswscale")) return false;
+      if (lower.startsWith("libswresample") || lower.startsWith("libpostproc") || lower.startsWith("copyright (c)")) return false;
+
+      // FFmpeg Progress & Metadata Spam Filtresi
+      if (lower.includes("frame=") || lower.includes("fps=") || lower.includes("size=") || lower.includes("bitrate=") || lower.includes("speed=")) return false;
+      if (lower.includes("vendor_id") || lower.startsWith("stream #") || lower.startsWith("metadata:") || lower.startsWith("encoder:") || lower.startsWith("duration:")) return false;
+
       return true;
     });
 
@@ -91,7 +90,11 @@ function extractCleanErrorMessage(err: unknown): string {
     return lines.slice(-2).join(" | ");
   }
 
-  return errorObj.message?.split("\n")[0] || "Bilinmeyen sunucu hatası";
+  if (errorObj.signal || errorObj.code === "ETIMEDOUT") {
+    return "İşlem zaman aşımına veya sunucu kaynak sınırına uğradı.";
+  }
+
+  return "Bilinmeyen medya dönüştürme hatası";
 }
 
 /**
@@ -105,7 +108,7 @@ async function checkVideoCodec(filePath: string): Promise<string> {
       "-show_entries", "stream=codec_name",
       "-of", "json",
       filePath
-    ]);
+    ], { maxBuffer: 10 * 1024 * 1024, timeout: 15000 });
 
     const parsed = JSON.parse(stdout);
     return parsed?.streams?.[0]?.codec_name?.toLowerCase() || "";
@@ -115,24 +118,36 @@ async function checkVideoCodec(filePath: string): Promise<string> {
 }
 
 /**
- * FFmpeg transcode komutunu sadece exit code 0 durumunda başarılı sayar.
- * Stderr içeriğindeki banner bilgileri başarı durumunu etkilemez.
+ * FFmpeg transcode komutunu çalıştırır.
+ * Progress spam'ını engellemek için -loglevel error ve -nostats kullanılır.
+ * Yüksek maxBuffer (50MB) ve timeout (120sn) ayarlanmıştır.
  */
 async function runFfmpegTranscode(inputPath: string, outputPath: string): Promise<void> {
   console.log(`[ffmpeg] Transcode başlatıldı: ${inputPath} -> ${outputPath}`);
   try {
     await execFileAsync("ffmpeg", [
       "-y",
+      "-loglevel", "error",
+      "-nostats",
       "-i", inputPath,
       "-c:v", "libx264",
       "-preset", "fast",
       "-crf", "18",
       "-c:a", "copy",
       outputPath
-    ], { timeout: 60000 });
+    ], {
+      timeout: 120000, // 2 dakika zaman aşımı
+      maxBuffer: 50 * 1024 * 1024, // 50MB tampon bellek
+    });
 
     console.log(`[ffmpeg] Transcode başarıyla (exitCode 0) tamamlandı.`);
   } catch (err: any) {
+    console.error(`[ffmpeg process exit info]: code=${err.code}, signal=${err.signal}, killed=${err.killed}`);
+
+    if (err.killed || err.signal === "SIGTERM" || err.signal === "SIGKILL" || err.code === "ETIMEDOUT") {
+      throw new Error("Video dönüştürme işlemi zaman aşımına veya bellek sınırına uğradı.");
+    }
+
     const cleanErr = extractCleanErrorMessage(err);
     console.error(`[ffmpeg] Transcode başarısız oldu: ${cleanErr}`);
     throw new Error(`FFmpeg video dönüştürme hatası: ${cleanErr}`);
@@ -163,8 +178,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         videoUrl,
       ],
       {
-        maxBuffer: 15 * 1024 * 1024,
-        timeout: 25000,
+        maxBuffer: 50 * 1024 * 1024,
+        timeout: 30000,
       }
     );
 
@@ -203,7 +218,10 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         "-o", outputPath,
         videoUrl,
       ],
-      { timeout: 40000 }
+      {
+        maxBuffer: 50 * 1024 * 1024,
+        timeout: 60000,
+      }
     );
 
     // İndirilen dosyanın codec'ini ffprobe ile doğrula
