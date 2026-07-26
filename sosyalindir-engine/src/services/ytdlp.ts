@@ -214,7 +214,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
     await execFileAsync(
       "yt-dlp",
       [
-        "-f", "bestvideo[vcodec*='avc1']+bestaudio/bestvideo[vcodec*='h264']+bestaudio/bestvideo+bestaudio/best",
+        "-f", "bestvideo[vcodec^=avc1]+bestaudio/bestvideo[vcodec^=h264]+bestaudio/bestvideo[vcodec!=av1]+bestaudio/best",
+        "--format-sort", "vcodec:h264,res,ext",
         "--merge-output-format", "mp4",
         "--postprocessor-args", "ffmpeg:-movflags +faststart",
         "--no-warnings",
