@@ -14,6 +14,19 @@ export default function InstagramReelsPage() {
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "WebApplication",
+        "name": "Instagram Reels İndirici — SosyalIndir",
+        "url": "https://sosyalindirapp.com/instagram-reels-indir",
+        "description": "Instagram Reels ve videolarını hiçbir ücret ödemeden, kayıt olmadan orijinal HD kalitede telefonunuza veya bilgisayarınıza indirin.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "TRY"
+        }
+      },
+      {
         "@type": "FAQPage",
         "mainEntity": [
           {

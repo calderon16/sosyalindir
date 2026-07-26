@@ -14,6 +14,19 @@ export default function TikTokVideoPage() {
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "WebApplication",
+        "name": "TikTok Video İndirici — SosyalIndir",
+        "url": "https://sosyalindirapp.com/tiktok-video-indir",
+        "description": "TikTok videolarını filigran (watermark) ve logo olmadan en yüksek çözünürlükte ücretsiz indirin.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "TRY"
+        }
+      },
+      {
         "@type": "FAQPage",
         "mainEntity": [
           {

@@ -14,6 +14,19 @@ export default function FacebookReelsPage() {
     "@context": "https://schema.org",
     "@graph": [
       {
+        "@type": "WebApplication",
+        "name": "Facebook Reels İndirici — SosyalIndir",
+        "url": "https://sosyalindirapp.com/facebook-reels-indir",
+        "description": "Facebook Reels ve kısa videolarını doğrudan MP4 formatında HD kalitede ücretsiz indirin.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "TRY"
+        }
+      },
+      {
         "@type": "FAQPage",
         "mainEntity": [
           {
@@ -170,7 +183,7 @@ export default function FacebookReelsPage() {
           <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
             <h3 className="font-semibold text-white text-sm">İndirdiğim Facebook Reels videosunu yeniden yükleyebilir miyim?</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              İndirdiğiniz videoları kendi arşiviniz için saklayabilirsiniz. Başkasına ait içerikleri telif izni olmadan yeniden yayınlamak platform kurallarını ihlal edebilir. Telif sahibinin iznini almanızı tavsiye ederiz.
+              İndirdiğiniz videoları kendi arşiviniz için saklayabilirsiniz. Başkasına ait içerikleri telif izni olmadan yayınlamak platform kurallarını ihlal edebilir. Telif sahibinin iznini almanızı tavsiye ederiz.
             </p>
           </div>
         </div>
