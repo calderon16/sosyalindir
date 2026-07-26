@@ -5,37 +5,36 @@ const router = Router();
 
 /**
  * İzin verilen sosyal medya alan adları ve platform tespiti
+ * String içerme kontrolü ile URL malformed hatalarını engeller.
  */
 function validateAndDetectPlatform(urlStr: string): { isValid: boolean; platform: string } {
-  try {
-    const parsedUrl = new URL(urlStr);
-    const host = parsedUrl.hostname.toLowerCase();
-    const pathname = parsedUrl.pathname.toLowerCase();
-
-    // Instagram
-    if (host.includes("instagram.com")) {
-      return { isValid: true, platform: "instagram" };
-    }
-
-    // TikTok
-    if (host.includes("tiktok.com")) {
-      return { isValid: true, platform: "tiktok" };
-    }
-
-    // YouTube Shorts
-    if ((host.includes("youtube.com") && pathname.includes("/shorts")) || host.includes("youtu.be")) {
-      return { isValid: true, platform: "youtube" };
-    }
-
-    // Facebook Reels
-    if (host.includes("facebook.com") || host.includes("fb.watch")) {
-      return { isValid: true, platform: "facebook" };
-    }
-
-    return { isValid: false, platform: "unknown" };
-  } catch {
+  if (!urlStr || typeof urlStr !== "string") {
     return { isValid: false, platform: "unknown" };
   }
+
+  const lowerUrl = urlStr.toLowerCase().trim();
+
+  // Instagram
+  if (lowerUrl.includes("instagram.com")) {
+    return { isValid: true, platform: "instagram" };
+  }
+
+  // TikTok
+  if (lowerUrl.includes("tiktok.com")) {
+    return { isValid: true, platform: "tiktok" };
+  }
+
+  // YouTube Shorts
+  if (lowerUrl.includes("youtube.com/shorts") || lowerUrl.includes("youtu.be")) {
+    return { isValid: true, platform: "youtube" };
+  }
+
+  // Facebook Reels & Medya
+  if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.watch") || lowerUrl.includes("fb.com")) {
+    return { isValid: true, platform: "facebook" };
+  }
+
+  return { isValid: false, platform: "unknown" };
 }
 
 /**
@@ -68,8 +67,17 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     });
   } catch (err: unknown) {
     const error = err as Error;
+    const errorMsg = error.message || "Video bilgileri çözümlenemedi.";
+
+    if (errorMsg.includes("URI malformed") || errorMsg.includes("URIError")) {
+      res.status(400).json({
+        error: "Geçersiz bağlantı formatı, lütfen linki kontrol edip tekrar yapıştırın.",
+      });
+      return;
+    }
+
     res.status(422).json({
-      error: error.message || "Video bilgileri çözümlenemedi.",
+      error: errorMsg,
     });
   }
 });

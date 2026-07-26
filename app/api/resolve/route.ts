@@ -71,13 +71,15 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
     return await handleResolve(body.url);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[API resolve POST error]:", error);
+    const errorMsg = error?.message?.includes("URI malformed")
+      ? "Geçersiz bağlantı formatı, lütfen linki kontrol edip tekrar yapıştırın."
+      : "Video indirme servisine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.";
+
     return NextResponse.json(
-      {
-        error: "Video indirme servisine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.",
-      },
-      { status: 503 }
+      { error: errorMsg },
+      { status: 400 }
     );
   }
 }
@@ -87,13 +89,15 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const url = searchParams.get("url") || "";
     return await handleResolve(url);
-  } catch (error) {
+  } catch (error: any) {
     console.error("[API resolve GET error]:", error);
+    const errorMsg = error?.message?.includes("URI malformed")
+      ? "Geçersiz bağlantı formatı, lütfen linki kontrol edip tekrar yapıştırın."
+      : "Video indirme servisine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.";
+
     return NextResponse.json(
-      {
-        error: "Video indirme servisine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.",
-      },
-      { status: 503 }
+      { error: errorMsg },
+      { status: 400 }
     );
   }
 }

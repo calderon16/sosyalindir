@@ -280,6 +280,9 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
   } catch (err: unknown) {
     const cleanDetail = extractCleanErrorMessage(err);
     
+    if (cleanDetail.includes("URI malformed") || cleanDetail.includes("URIError")) {
+      throw new Error("Geçersiz bağlantı formatı, lütfen linki kontrol edip tekrar yapıştırın.");
+    }
     if (cleanDetail.includes("Private video") || cleanDetail.includes("login")) {
       throw new Error("Bu video gizli ya da erişime kapalı.");
     }
