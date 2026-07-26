@@ -42,7 +42,7 @@ function validateAndDetectPlatform(urlStr: string): { isValid: boolean; platform
  * GET /resolve?url=...
  * Video linkinden metadata ve direkt indirme URL'ini çözer.
  */
-router.get("/resolve", async (req: Request, res: Response): Promise<void> => {
+router.get("/", async (req: Request, res: Response): Promise<void> => {
   const urlParam = req.query.url;
 
   if (!urlParam || typeof urlParam !== "string") {

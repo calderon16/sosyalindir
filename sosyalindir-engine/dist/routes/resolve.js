@@ -37,7 +37,7 @@ function validateAndDetectPlatform(urlStr) {
  * GET /resolve?url=...
  * Video linkinden metadata ve direkt indirme URL'ini çözer.
  */
-router.get("/resolve", async (req, res) => {
+router.get("/", async (req, res) => {
     const urlParam = req.query.url;
     if (!urlParam || typeof urlParam !== "string") {
         res.status(400).json({ error: "Geçerli bir 'url' sorgu parametresi gereklidir." });

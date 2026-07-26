@@ -38,7 +38,7 @@ function buildCdnHeaders(targetUrl) {
  * GET /download?formatUrl=...&filename=... VEYA /download?fileId=...&filename=...
  * Medya dosyasını (uzaktan stream veya yerel birleştirilmiş dosya) istemciye sunar.
  */
-router.get("/download", async (req, res) => {
+router.get("/", async (req, res) => {
     const fileId = req.query.fileId;
     const formatUrl = (req.query.formatUrl || req.query.url);
     const filename = req.query.filename || "sosyalindir-video.mp4";
