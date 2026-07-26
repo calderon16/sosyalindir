@@ -233,11 +233,12 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
     const detectedCodec = await checkVideoCodec(outputPath);
     console.log(`[ytdlp service] ffprobe ile tespit edilen video codec: '${detectedCodec}'`);
 
-    const isHevc = detectedCodec.includes("hevc") || detectedCodec.includes("h265") || detectedCodec.includes("hev1") || detectedCodec.includes("hvc1");
+    // H.264 (avc1/h264) uyumlu mu? Değilse (HEVC, AV1, VP9 vb.) transcode et
+    const isH264 = detectedCodec.includes("h264") || detectedCodec.includes("avc");
+    const needsTranscode = !isH264 && detectedCodec !== "" && detectedCodec !== "unknown";
 
-    // HEVC (H.265) veya H.264 dışındaki uyumsuz codec'ler için ffmpeg transcode tetikle
-    if (isHevc) {
-      console.log(`[ytdlp service] HEVC (${detectedCodec}) tespit edildi! H.264 (libx264) transcoding BAŞLATILDI...`);
+    if (needsTranscode) {
+      console.log(`[ytdlp service] Mobil-uyumsuz codec (${detectedCodec}) tespit edildi! H.264 (libx264) transcoding BAŞLATILDI...`);
       const transcodePath = path.join(TEMP_DIR, `${fileId}_h264.mp4`);
       const transcodeStart = Date.now();
 
@@ -269,7 +270,7 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
       filesize: stats?.size,
       isWatermarkless: true,
       hasAudio: true,
-      vcodec: isHevc ? "h264_transcoded" : detectedCodec,
+      vcodec: needsTranscode ? "h264_transcoded" : detectedCodec,
     };
 
     return {
