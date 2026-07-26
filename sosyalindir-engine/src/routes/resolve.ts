@@ -3,35 +3,50 @@ import { resolveVideoWithYtDlp } from "../services/ytdlp.js";
 
 const router = Router();
 
+// SSRF Korumalı — İzin Verilen Tam Alan Adları ve Alt Alan Adları Listesi
+const ALLOWED_PLATFORM_DOMAINS: Record<string, string[]> = {
+  instagram: ["instagram.com", "instagr.am"],
+  tiktok: ["tiktok.com", "vmtiktok.com"],
+  youtube: ["youtube.com", "youtu.be"],
+  facebook: ["facebook.com", "fb.watch", "fb.com", "fb.gg"],
+};
+
 /**
- * İzin verilen sosyal medya alan adları ve platform tespiti
- * String içerme kontrolü ile URL malformed hatalarını engeller.
+ * SSRF Korumalı Alan Adı Doğrulaması ve Platform Tespiti.
+ * Substring veya wildcard açıklarına izin vermeyen sıkı URL hostname kontrolü yapar.
  */
 function validateAndDetectPlatform(urlStr: string): { isValid: boolean; platform: string } {
   if (!urlStr || typeof urlStr !== "string") {
     return { isValid: false, platform: "unknown" };
   }
 
-  const lowerUrl = urlStr.toLowerCase().trim();
-
-  // Instagram
-  if (lowerUrl.includes("instagram.com")) {
-    return { isValid: true, platform: "instagram" };
+  let parsed: URL;
+  try {
+    parsed = new URL(urlStr.trim());
+    // Sadece http ve https protokollerine izin ver (file://, gopher://, internal IP engeli)
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return { isValid: false, platform: "unknown" };
+    }
+  } catch {
+    return { isValid: false, platform: "unknown" };
   }
 
-  // TikTok
-  if (lowerUrl.includes("tiktok.com")) {
-    return { isValid: true, platform: "tiktok" };
-  }
+  const hostname = parsed.hostname.toLowerCase();
 
-  // YouTube Shorts
-  if (lowerUrl.includes("youtube.com/shorts") || lowerUrl.includes("youtu.be")) {
-    return { isValid: true, platform: "youtube" };
-  }
-
-  // Facebook Reels & Medya
-  if (lowerUrl.includes("facebook.com") || lowerUrl.includes("fb.watch") || lowerUrl.includes("fb.com")) {
-    return { isValid: true, platform: "facebook" };
+  for (const [platform, domains] of Object.entries(ALLOWED_PLATFORM_DOMAINS)) {
+    for (const domain of domains) {
+      if (hostname === domain || hostname.endsWith("." + domain)) {
+        // YouTube durumunda Shorts veya youtu.be kontrolü
+        if (platform === "youtube") {
+          const pathname = parsed.pathname.toLowerCase();
+          if (hostname === "youtu.be" || pathname.includes("/shorts")) {
+            return { isValid: true, platform: "youtube" };
+          }
+          return { isValid: false, platform: "unknown" };
+        }
+        return { isValid: true, platform };
+      }
+    }
   }
 
   return { isValid: false, platform: "unknown" };

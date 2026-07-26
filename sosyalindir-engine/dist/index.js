@@ -17,32 +17,27 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "https://sosyalindirapp.com";
 app.set("trust proxy", 1);
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-// CORS Konfigürasyonu (sosyalindirapp.com, Vercel domainleri ve localhost izinli)
-const allowedOrigins = [
-    FRONTEND_URL,
+// Sıkılaştırılmış CORS Konfigürasyonu
+const allowedOrigins = new Set([
+    FRONTEND_URL.replace(/\/$/, ""),
     "https://sosyalindirapp.com",
     "https://www.sosyalindirapp.com",
-    "https://sosyalindir.vercel.app",
-    "https://sosyalindir-tau.vercel.app",
     "http://localhost:3000",
-];
+]);
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        if (!origin ||
-            allowedOrigins.includes(origin) ||
-            origin.includes("sosyalindirapp.com") ||
-            origin.includes("vercel.app") ||
-            origin.includes("localhost") ||
-            process.env.NODE_ENV !== "production") {
+        // Sunucular arası veya aynı kök istekler (!origin) ve izin verilen domainler
+        if (!origin || allowedOrigins.has(origin)) {
             callback(null, true);
         }
         else {
-            callback(null, true);
+            console.warn(`[CORS Blocked]: ${origin}`);
+            callback(new Error("CORS politikasınca izin verilmeyen istek kuralı."));
         }
     },
     credentials: true,
 }));
-// Genel Rate Limiter Middleware
+// Genel Rate Limiter Middleware (tüm endpoint'lere uygulanır)
 app.use(rateLimit_1.limiter);
 // Sağlık Kontrolü (Health Check) Endpoint'i
 app.get("/", (req, res) => {
@@ -54,15 +49,14 @@ app.get("/", (req, res) => {
         timestamp: new Date().toISOString(),
     });
 });
-// Route Tanımlamaları
+// Route Tanımlamaları (/resolve ve /download)
 app.use("/resolve", resolve_1.default);
 app.use("/download", download_1.default);
 // Hata Yakalama Middleware'i
 app.use((err, req, res, next) => {
-    console.error("[Unhandled Error]:", err);
-    res.status(500).json({
-        error: "Sunucu içi beklenmeyen bir hata oluştu.",
-        message: process.env.NODE_ENV === "development" ? err.message : undefined,
+    console.error("[Unhandled Error]:", err.message || err);
+    res.status(err.status || 500).json({
+        error: err.message || "Sunucu içi beklenmeyen bir hata oluştu.",
     });
 });
 app.listen(PORT, () => {

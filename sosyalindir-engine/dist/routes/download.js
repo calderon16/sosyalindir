@@ -50,6 +50,11 @@ router.get("/", async (req, res) => {
     }
     // 1. Durum: Yerel birleştirilmiş (temp merged) dosya indirmesi
     if (fileId) {
+        // Path Traversal Koruması: fileId sadece alfanumerik, alt çizgi ve tire içerebilir
+        if (typeof fileId !== "string" || !/^[a-zA-Z0-9_-]+$/.test(fileId)) {
+            res.status(400).json({ error: "Geçersiz dosya kimliği formatı." });
+            return;
+        }
         const tempPath = (0, ytdlp_js_1.getTempFilePath)(fileId);
         if (!tempPath) {
             res.status(444).json({ error: "İstenen medya süresi dolmuş veya bulunamadı." });
