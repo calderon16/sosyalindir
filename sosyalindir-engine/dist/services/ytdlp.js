@@ -10,6 +10,7 @@ const util_1 = require("util");
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
+const https_1 = __importDefault(require("https"));
 const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
 // Geçici birleştirilmiş/indirilmiş dosyaların saklanacağı dizin
 const TEMP_DIR = path_1.default.join(os_1.default.tmpdir(), "sosyalindir_temp_media");
@@ -35,6 +36,52 @@ setInterval(() => {
     }
 }, 5 * 60 * 1000);
 /**
+ * Otomatik Instagram Misafir Çerezi (Guest Session) Oluşturucu.
+ * Kullanıcı müdahalesi gerektirmeden Instagram sunucularından dinamik misafir çerezlerini çeker.
+ */
+async function ensureAutoGuestCookies() {
+    if (process.env.INSTAGRAM_COOKIES)
+        return; // Manuel çerez varsa dokunma
+    try {
+        const setCookies = await new Promise((resolve) => {
+            const req = https_1.default.get("https://www.instagram.com/", {
+                headers: {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9"
+                },
+                timeout: 8000
+            }, (res) => {
+                resolve(res.headers["set-cookie"] || []);
+            });
+            req.on("error", () => resolve([]));
+        });
+        if (setCookies.length > 0) {
+            const cookieLines = [
+                "# Netscape HTTP Cookie File",
+                "# http://curl.haxx.se/rfc/cookie_spec.html",
+                "# Auto-generated guest cookies",
+                ""
+            ];
+            for (const cookieHeader of setCookies) {
+                const parts = cookieHeader.split(";")[0].split("=");
+                if (parts.length >= 2) {
+                    const name = parts[0].trim();
+                    const value = parts.slice(1).join("=").trim();
+                    if (name && value) {
+                        cookieLines.push(`.instagram.com\tTRUE\t/\tFALSE\t${Math.floor(Date.now() / 1000) + 864000}\t${name}\t${value}`);
+                    }
+                }
+            }
+            fs_1.default.writeFileSync(COOKIES_PATH, cookieLines.join("\n"), "utf-8");
+            console.log(`[ytdlp service] Otomatik Instagram misafir çerezleri yenilendi (${setCookies.length} adet).`);
+        }
+    }
+    catch {
+        // Otomatik çerez alma hatasını yut
+    }
+}
+/**
  * Gerekli durumlarda ortama eklenen proxy veya çerez parametrelerini hazırlar
  */
 function buildYtdlpExtraArgs(platform) {
@@ -44,7 +91,7 @@ function buildYtdlpExtraArgs(platform) {
     if (proxyUrl) {
         extraArgs.push("--proxy", proxyUrl);
     }
-    // Cookies dosyası desteği (Ortam değişkeninden veya yerel cookies.txt'den okur)
+    // Cookies dosyası desteği (Ortam değişkeninden veya otomatik oluşturulan cookies.txt'den okur)
     if (process.env.INSTAGRAM_COOKIES) {
         try {
             const content = Buffer.from(process.env.INSTAGRAM_COOKIES, "base64").toString("utf-8");
@@ -174,24 +221,57 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
     try {
         const startTime = Date.now();
         console.log(`[ytdlp service] Resolve başlatılıyor (${platform}): ${videoUrl}`);
-        const extraArgs = buildYtdlpExtraArgs(platform);
-        const { stdout } = await execFileAsync("yt-dlp", [
-            "-j",
-            "--no-warnings",
-            "--no-playlist",
-            "--skip-download",
-            "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-            "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : platform === "instagram" ? "https://www.instagram.com/" : "https://www.facebook.com/",
-            ...extraArgs,
-            videoUrl,
-        ], {
-            maxBuffer: 50 * 1024 * 1024,
-            timeout: 30000,
-        });
-        if (!stdout || !stdout.trim()) {
+        // Instagram için otomatik misafir çerezi garantile
+        if (platform === "instagram") {
+            await ensureAutoGuestCookies();
+        }
+        let extraArgs = buildYtdlpExtraArgs(platform);
+        let stdoutData = "";
+        try {
+            const { stdout } = await execFileAsync("yt-dlp", [
+                "-j",
+                "--no-warnings",
+                "--no-playlist",
+                "--skip-download",
+                "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+                "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : platform === "instagram" ? "https://www.instagram.com/" : "https://www.facebook.com/",
+                ...extraArgs,
+                videoUrl,
+            ], {
+                maxBuffer: 50 * 1024 * 1024,
+                timeout: 30000,
+            });
+            stdoutData = stdout;
+        }
+        catch (firstErr) {
+            // Instagram boş yanıt verirse otomatik misafir çerezlerini yenile ve 1 kez tekrar dene
+            if (platform === "instagram" && extractCleanErrorMessage(firstErr).toLowerCase().includes("empty media response")) {
+                console.log(`[ytdlp service] Instagram boş yanıt verdi, otomatik misafir çerezi yenilenip tekrar deneniyor...`);
+                await ensureAutoGuestCookies();
+                extraArgs = buildYtdlpExtraArgs(platform);
+                const { stdout } = await execFileAsync("yt-dlp", [
+                    "-j",
+                    "--no-warnings",
+                    "--no-playlist",
+                    "--skip-download",
+                    "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "--referer", "https://www.instagram.com/",
+                    ...extraArgs,
+                    videoUrl,
+                ], {
+                    maxBuffer: 50 * 1024 * 1024,
+                    timeout: 30000,
+                });
+                stdoutData = stdout;
+            }
+            else {
+                throw firstErr;
+            }
+        }
+        if (!stdoutData || !stdoutData.trim()) {
             throw new Error("yt-dlp boş yanıt döndürdü.");
         }
-        const data = JSON.parse(stdout.trim());
+        const data = JSON.parse(stdoutData.trim());
         // Temel metadata alanları
         const id = data.id || "unknown";
         const title = data.title || data.description || "Sosyal Medya Videosu";
