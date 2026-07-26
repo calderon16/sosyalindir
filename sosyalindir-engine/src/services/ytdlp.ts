@@ -35,6 +35,8 @@ if (!fs.existsSync(TEMP_DIR)) {
   fs.mkdirSync(TEMP_DIR, { recursive: true });
 }
 
+const COOKIES_PATH = path.join(TEMP_DIR, "cookies.txt");
+
 // 10 dakikadan eski geçici dosyaları otomatik temizle
 setInterval(() => {
   try {
@@ -51,6 +53,44 @@ setInterval(() => {
     // Temizlik hatalarını yut
   }
 }, 5 * 60 * 1000);
+
+/**
+ * Gerekli durumlarda ortama eklenen proxy veya çerez parametrelerini hazırlar
+ */
+function buildYtdlpExtraArgs(platform: string): string[] {
+  const extraArgs: string[] = [];
+
+  // Proxy desteği (Railway veya yerel ortam değişkeninden okur)
+  const proxyUrl = process.env.PROXY_URL || process.env.HTTP_PROXY || process.env.HTTPS_PROXY;
+  if (proxyUrl) {
+    extraArgs.push("--proxy", proxyUrl);
+  }
+
+  // Cookies dosyası desteği (Ortam değişkeninden veya yerel cookies.txt'den okur)
+  if (process.env.INSTAGRAM_COOKIES) {
+    try {
+      const content = Buffer.from(process.env.INSTAGRAM_COOKIES, "base64").toString("utf-8");
+      fs.writeFileSync(COOKIES_PATH, content, "utf-8");
+    } catch {
+      fs.writeFileSync(COOKIES_PATH, process.env.INSTAGRAM_COOKIES, "utf-8");
+    }
+  }
+
+  if (fs.existsSync(COOKIES_PATH)) {
+    extraArgs.push("--cookies", COOKIES_PATH);
+  }
+
+  // Meta (Instagram / Facebook) bot/IP kısıtlamalarını aşan mobil başlıklar
+  if (platform === "instagram") {
+    extraArgs.push(
+      "--add-header", "X-IG-App-ID: 936619743392459",
+      "--add-header", "Sec-Fetch-Mode: navigate",
+      "--add-header", "Accept-Language: en-US,en;q=0.9"
+    );
+  }
+
+  return extraArgs;
+}
 
 /**
  * FFmpeg / yt-dlp stderr çıktısından banner ve progress metinlerini temizler,
@@ -170,6 +210,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
     const startTime = Date.now();
     console.log(`[ytdlp service] Resolve başlatılıyor (${platform}): ${videoUrl}`);
 
+    const extraArgs = buildYtdlpExtraArgs(platform);
+
     const { stdout } = await execFileAsync(
       "yt-dlp",
       [
@@ -177,8 +219,9 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         "--no-warnings",
         "--no-playlist",
         "--skip-download",
-        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
         "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : platform === "instagram" ? "https://www.instagram.com/" : "https://www.facebook.com/",
+        ...extraArgs,
         videoUrl,
       ],
       {
@@ -218,8 +261,9 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         "--postprocessor-args", "ffmpeg:-movflags +faststart",
         "--no-warnings",
         "--no-playlist",
-        "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "--user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
         "--referer", isTikTok ? "https://www.tiktok.com/" : "https://www.google.com/",
+        ...extraArgs,
         "-o", outputPath,
         videoUrl,
       ],
