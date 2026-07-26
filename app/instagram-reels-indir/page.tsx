@@ -10,60 +10,62 @@ export const metadata: Metadata = {
 };
 
 export default function InstagramReelsPage() {
-  const faqSchema = {
+  const jsonLdSchema = {
     "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
+    "@graph": [
       {
-        "@type": "Question",
-        "name": "Giriş yapmam ya da şifre vermem gerekiyor mu?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Hayır! SosyalIndir sizden asla Instagram şifrenizi veya hesap bilgilerinizi istemez. Yalnızca herkese açık bağlantıları işleriz."
-        }
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Giriş yapmam ya da şifre vermem gerekiyor mu?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Hayır! SosyalIndir sizden asla Instagram şifrenizi veya hesap bilgilerinizi istemez. Yalnızca herkese açık bağlantıları işleriz."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Gizli hesapların Reels videolarını indirebilir miyim?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Gizli (özel) hesapların içerikleri telif ve gizlilik ilkeleri gereği yalnızca izin verilen takipçilere özeldir. Bu nedenle yalnızca herkese açık hesapların videoları desteklenir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Videolar sesli ve yüksek kalitede mi iniyor?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evet, aracımız videoyu doğrudan Instagram sunucularındaki orijinal HD çözünürlüğü ve orijinal ses formatıyla indirir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "İndirdiğim videoyu kendi hesabımda paylaşabilir miyim?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Kendi kişisel arşiviniz için indirmekte özgürsünüz. Ancak başkasına ait videoları ticari amaçla veya telif sahibinin izni olmadan yeniden yayınlamak telif ihlaline yol açabilir. Etiket vererek paylaşmanızı öneririz."
+            }
+          }
+        ]
       },
       {
-        "@type": "Question",
-        "name": "Gizli hesapların Reels videolarını indirebilir miyim?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Gizli (özel) hesapların içerikleri telif ve gizlilik ilkeleri gereği yalnızca izin verilen takipçilere özeldir. Bu nedenle yalnızca herkese açık hesapların videoları desteklenir."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Videolar sesli ve yüksek kalitede mi iniyor?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Evet, aracımız videoyu doğrudan Instagram sunucularındaki orijinal HD çözünürlüğü ve orijinal ses formatıyla indirir."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "İndirdiğim videoyu kendi hesabımda paylaşabilir miyim?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Kendi kişisel arşiviniz için indirmekte özgürsünüz. Ancak başkasına ait videoları ticari amaçla veya telif sahibinin izni olmadan yeniden yayınlamak telif ihlaline yol açabilir. Etiket vererek paylaşmanızı öneririz."
-        }
-      }
-    ]
-  };
-
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Ana Sayfa",
-        "item": "https://sosyalindirapp.com"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Instagram Reels Video İndirme",
-        "item": "https://sosyalindirapp.com/instagram-reels-indir"
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Ana Sayfa",
+            "item": "https://sosyalindirapp.com"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Instagram Reels Video İndirme",
+            "item": "https://sosyalindirapp.com/instagram-reels-indir"
+          }
+        ]
       }
     ]
   };
@@ -73,11 +75,7 @@ export default function InstagramReelsPage() {
       {/* Structural Data (JSON-LD) */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
       />
       
       {/* Hero Alanı */}
@@ -151,7 +149,7 @@ export default function InstagramReelsPage() {
           <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
             <h3 className="font-semibold text-white text-sm">Giriş yapmam ya da şifre vermem gerekiyor mu?</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Hayır! SosyalIndir sizden asla Instagram şifrenizi veya hesap bilgilerinizi istemez. YalnızcaHerkese açık bağlantıları işleriz.
+              Hayır! SosyalIndir sizden asla Instagram şifrenizi veya hesap bilgilerinizi istemez. Yalnızca herkese açık bağlantıları işleriz.
             </p>
           </div>
 

@@ -52,30 +52,32 @@ export default function HomePage() {
     setErrorMessage(null);
   };
 
-  const webAppSchema = {
+  const jsonLdSchema = {
     "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "SosyalIndir",
-    "url": "https://sosyalindirapp.com",
-    "description": "Instagram Reels, TikTok ve Facebook Reels videolarını filigransız, hızlı ve %100 ücretsiz orijinal kalitede indirin.",
-    "applicationCategory": "MultimediaApplication",
-    "operatingSystem": "Web",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "TRY"
-    }
-  };
-
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
+    "@graph": [
       {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Ana Sayfa",
-        "item": "https://sosyalindirapp.com"
+        "@type": "WebApplication",
+        "name": "SosyalIndir",
+        "url": "https://sosyalindirapp.com",
+        "description": "Instagram Reels, TikTok ve Facebook Reels videolarını filigransız, hızlı ve %100 ücretsiz orijinal kalitede indirin.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "TRY"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Ana Sayfa",
+            "item": "https://sosyalindirapp.com"
+          }
+        ]
       }
     ]
   };
@@ -85,11 +87,7 @@ export default function HomePage() {
       {/* Structural Data (JSON-LD) */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(webAppSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
       />
 
       <div className="max-w-4xl mx-auto text-center space-y-6">

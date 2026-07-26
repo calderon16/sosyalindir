@@ -10,60 +10,62 @@ export const metadata: Metadata = {
 };
 
 export default function TikTokVideoPage() {
-  const faqSchema = {
+  const jsonLdSchema = {
     "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
+    "@graph": [
       {
-        "@type": "Question",
-        "name": "Videolar gerçekten logosuz mu iniyor?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Evet! Gelişmiş indirme altyapımız TikTok sunucularındaki filigran uygulanmamış ham veriyi tespit ederek videoyu ek bir logo olmadan sunar."
-        }
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Videolar gerçekten logosuz mu iniyor?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evet! Gelişmiş indirme altyapımız TikTok sunucularındaki filigran uygulanmamış ham veriyi tespit ederek videoyu ek bir logo olmadan sunar."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "İndirme işlemi ücretli mi ya da sınır var mı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "SosyalIndir tamamen ücretsizdir. Günlük veya aylık hiçbir indirme sınırı olmadan istediğiniz kadar TikTok videosunu indirebilirsiniz."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Mobil cihazlarda (iPhone & Android) çalışır mı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evet, tüm mobil tarayıcılarda (Safari, Chrome) sorunsuz çalışır. İndirilen videolar cihazınızın galerisine veya İndirilenler klasörüne kaydedilir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "İndirdiğim TikTok videolarını kendi kanalımda yayınlayabilir miyim?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Videoların telif hakları içerik üreticisine aittir. İzinsiz veya kaynak göstermeden paylaşılan içerikler telif sorunlarına yol açabilir. Videoları paylaşırken orijinal sahibine atıfta bulunmanızı tavsiye ederiz."
+            }
+          }
+        ]
       },
       {
-        "@type": "Question",
-        "name": "İndirme işlemi ücretli mi ya da sınır var mı?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "SosyalIndir tamamen ücretsizdir. Günlük veya aylık hiçbir indirme sınırı olmadan istediğiniz kadar TikTok videosunu indirebilirsiniz."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Mobil cihazlarda (iPhone & Android) çalışır mı?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Evet, tüm mobil tarayıcılarda (Safari, Chrome) sorunsuz çalışır. İndirilen videolar cihazınızın galerisine veya İndirilenler klasörüne kaydedilir."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "İndirdiğim TikTok videolarını kendi kanalımda yayınlayabilir miyim?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Videoların telif hakları içerik üreticisine aittir. İzinsiz veya kaynak göstermeden paylaşılan içerikler telif sorunlarına yol açabilir. Videoları paylaşırken orijinal sahibine atıfta bulunmanızı tavsiye ederiz."
-        }
-      }
-    ]
-  };
-
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Ana Sayfa",
-        "item": "https://sosyalindirapp.com"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "TikTok Video İndirme",
-        "item": "https://sosyalindirapp.com/tiktok-video-indir"
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Ana Sayfa",
+            "item": "https://sosyalindirapp.com"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "TikTok Video İndirme",
+            "item": "https://sosyalindirapp.com/tiktok-video-indir"
+          }
+        ]
       }
     ]
   };
@@ -73,11 +75,7 @@ export default function TikTokVideoPage() {
       {/* Structural Data (JSON-LD) */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
       />
       
       {/* Hero Alanı */}

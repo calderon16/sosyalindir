@@ -10,60 +10,62 @@ export const metadata: Metadata = {
 };
 
 export default function FacebookReelsPage() {
-  const faqSchema = {
+  const jsonLdSchema = {
     "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
+    "@graph": [
       {
-        "@type": "Question",
-        "name": "Hem HD hem SD kalite seçenekleri var mı?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Evet, Facebook sunucularının sağladığı kaliteye göre HD (Yüksek Çözünürlük) ve SD (Standart Çözünürlük) seçenekleri otomatik olarak sunulur."
-        }
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Hem HD hem SD kalite seçenekleri var mı?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Evet, Facebook sunucularının sağladığı kaliteye göre HD (Yüksek Çözünürlük) ve SD (Standart Çözünürlük) seçenekleri otomatik olarak sunulur."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Gizli gruplardaki veya kapalı profillerdeki videolar indirilebilir mi?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Güvenlik ve gizlilik politikaları gereği yalnızca herkese açık (Public) Facebook gönderileri ve Reels videoları desteklenir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Facebook hesabımla giriş yapmam gerekiyor mu?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Hayır! Hiçbir sosyal medya hesabınızı bağlamanız veya giriş yapmanız gerekmez. İşlem tamamen anonim olarak gerçekleşir."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "İndirdiğim Facebook Reels videosunu yeniden yükleyebilir miyim?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "İndirdiğiniz videoları kendi arşiviniz için saklayabilirsiniz. Başkasına ait içerikleri telif izni olmadan yeniden yayınlamak platform kurallarını ihlal edebilir. Telif sahibinin iznini almanızı tavsiye ederiz."
+            }
+          }
+        ]
       },
       {
-        "@type": "Question",
-        "name": "Gizli gruplardaki veya kapalı profillerdeki videolar indirilebilir mi?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Güvenlik ve gizlilik politikaları gereği yalnızca herkese açık (Public) Facebook gönderileri ve Reels videoları desteklenir."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Facebook hesabımla giriş yapmam gerekiyor mu?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Hayır! Hiçbir sosyal medya hesabınızı bağlamanız veya giriş yapmanız gerekmez. İşlem tamamen anonim olarak gerçekleşir."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "İndirdiğim Facebook Reels videosunu yeniden yükleyebilir miyim?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "İndirdiğiniz videoları kendi arşiviniz için saklayabilirsiniz. Başkasına ait içerikleri telif izni olmadan yeniden yayınlamak platform kurallarını ihlal edebilir. Telif sahibinin iznini almanızı tavsiye ederiz."
-        }
-      }
-    ]
-  };
-
-  const breadcrumbSchema = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "Ana Sayfa",
-        "item": "https://sosyalindirapp.com"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Facebook Reels Video İndirme",
-        "item": "https://sosyalindirapp.com/facebook-reels-indir"
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Ana Sayfa",
+            "item": "https://sosyalindirapp.com"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Facebook Reels Video İndirme",
+            "item": "https://sosyalindirapp.com/facebook-reels-indir"
+          }
+        ]
       }
     ]
   };
@@ -73,11 +75,7 @@ export default function FacebookReelsPage() {
       {/* Structural Data (JSON-LD) */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLdSchema) }}
       />
       
       {/* Hero Alanı */}
