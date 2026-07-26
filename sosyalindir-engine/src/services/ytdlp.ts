@@ -253,7 +253,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
     console.log(`[ytdlp service] Medya hazırlığı tamamlandı (Toplam Süre: ${elapsed}ms): ${outputPath}`);
 
     const stats = fs.existsSync(outputPath) ? fs.statSync(outputPath) : null;
-    const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(title.substring(0, 30))}.mp4`;
+    const safeTitle = (title || "video").substring(0, 30).replace(/[^a-zA-Z0-9_-]/g, "_");
+    const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(safeTitle)}.mp4`;
 
     const localFormat: VideoFormatOption = {
       formatId: "merged_best",

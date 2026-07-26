@@ -205,7 +205,8 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
         const elapsed = Date.now() - startTime;
         console.log(`[ytdlp service] Medya hazırlığı tamamlandı (Toplam Süre: ${elapsed}ms): ${outputPath}`);
         const stats = fs_1.default.existsSync(outputPath) ? fs_1.default.statSync(outputPath) : null;
-        const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(title.substring(0, 30))}.mp4`;
+        const safeTitle = (title || "video").substring(0, 30).replace(/[^a-zA-Z0-9_-]/g, "_");
+        const downloadPath = `/download?fileId=${fileId}&filename=${encodeURIComponent(safeTitle)}.mp4`;
         const localFormat = {
             formatId: "merged_best",
             ext: "mp4",
