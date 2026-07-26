@@ -7,6 +7,7 @@ const express_1 = require("express");
 const axios_1 = __importDefault(require("axios"));
 const fs_1 = __importDefault(require("fs"));
 const ytdlp_js_1 = require("../services/ytdlp.js");
+const rateLimit_js_1 = require("../middleware/rateLimit.js");
 const router = (0, express_1.Router)();
 /**
  * Hedef CDN URL'ine göre uygun Referer, User-Agent ve HTTP header'larını oluşturur
@@ -38,7 +39,7 @@ function buildCdnHeaders(targetUrl) {
  * GET /download?formatUrl=...&filename=... VEYA /download?fileId=...&filename=...
  * Medya dosyasını (uzaktan stream veya yerel birleştirilmiş dosya) istemciye sunar.
  */
-router.get("/", async (req, res) => {
+router.get("/", rateLimit_js_1.downloadBandwidthLimiter, async (req, res) => {
     const fileId = req.query.fileId;
     const formatUrl = (req.query.formatUrl || req.query.url);
     const filename = req.query.filename || "sosyalindir-video.mp4";
@@ -84,61 +85,49 @@ router.get("/", async (req, res) => {
     }
     try {
         const headers = buildCdnHeaders(formatUrl);
-        console.log(`[Download Proxy] Target CDN URL: ${formatUrl}`);
-        console.log(`[Download Proxy] Headers:`, JSON.stringify(headers, null, 2));
-        const response = await (0, axios_1.default)({
+        const cdnResponse = await (0, axios_1.default)({
             method: "GET",
             url: formatUrl,
-            responseType: "stream",
-            timeout: 35000,
             headers,
+            responseType: "stream",
+            timeout: 30000,
+            validateStatus: (status) => status >= 200 && status < 300,
         });
-        const contentType = response.headers["content-type"];
-        if (contentType) {
-            res.setHeader("Content-Type", String(contentType));
-        }
-        else {
-            res.setHeader("Content-Type", "video/mp4");
-        }
+        const contentType = String(cdnResponse.headers["content-type"] || "video/mp4");
+        const contentLength = cdnResponse.headers["content-length"] ? String(cdnResponse.headers["content-length"]) : undefined;
+        res.setHeader("Content-Type", contentType);
         res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`);
-        const contentLength = response.headers["content-length"];
         if (contentLength) {
-            res.setHeader("Content-Length", String(contentLength));
+            res.setHeader("Content-Length", contentLength);
         }
-        response.data.pipe(res);
+        cdnResponse.data.pipe(res);
     }
     catch (err) {
-        let cdnResponseBody = "";
-        if (err.response && err.response.data) {
-            try {
-                if (typeof err.response.data.read === "function" || typeof err.response.data.on === "function") {
-                    const chunks = [];
-                    for await (const chunk of err.response.data) {
-                        chunks.push(Buffer.from(chunk));
-                    }
-                    cdnResponseBody = Buffer.concat(chunks).toString("utf-8");
-                }
-                else if (Buffer.isBuffer(err.response.data)) {
-                    cdnResponseBody = err.response.data.toString("utf-8");
-                }
-                else if (typeof err.response.data === "object") {
-                    cdnResponseBody = JSON.stringify(err.response.data);
-                }
-                else {
-                    cdnResponseBody = String(err.response.data);
-                }
-            }
-            catch {
-                cdnResponseBody = "Hata gövdesi okunamadı";
-            }
-        }
-        console.error(`[Download Router Error Status]: ${err.response?.status || "NO_STATUS"}`);
-        console.error(`[Download Router Error CDN Body]: ${cdnResponseBody}`);
+        console.error("[Download Proxy Error]:", err.message || err);
         if (!res.headersSent) {
-            res.status(err.response?.status || 502).json({
+            const status = err.response?.status || 500;
+            let cdnResponseBody = "";
+            if (err.response?.data) {
+                try {
+                    if (Buffer.isBuffer(err.response.data)) {
+                        cdnResponseBody = err.response.data.toString("utf-8");
+                    }
+                    else if (typeof err.response.data === "string") {
+                        cdnResponseBody = err.response.data;
+                    }
+                    else {
+                        cdnResponseBody = JSON.stringify(err.response.data);
+                    }
+                }
+                catch {
+                    cdnResponseBody = "Yanıt okunamadı";
+                }
+            }
+            console.error(`[CDN Error Detail]: HTTP ${status} - ${cdnResponseBody.substring(0, 300)}`);
+            res.status(status).json({
                 error: `Medya dosyası indirilemedi: ${err.message}`,
-                status: err.response?.status,
-                cdnResponse: cdnResponseBody,
+                status,
+                cdnResponse: cdnResponseBody.substring(0, 500),
             });
         }
     }
