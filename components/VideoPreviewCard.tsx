@@ -1,9 +1,16 @@
 "use client";
 
 import React from "react";
+import { sendGAEvent } from "@next/third-parties/google";
 import { PlatformType } from "@/lib/platformDetect";
 import { PlatformBadge } from "@/components/PlatformBadge";
 import { Download, Sparkles, RefreshCw, CheckCircle2, Clock, Film } from "lucide-react";
+
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
 
 export interface VideoFormatOption {
   formatId: string;
@@ -90,6 +97,28 @@ export function VideoPreviewCard({ data, onReset }: VideoPreviewCardProps) {
     duration,
     formats = [],
   } = data;
+
+  const trackDownloadEvent = (qualityLabel: string) => {
+    try {
+      sendGAEvent("event", "download_click", {
+        platform: platform || "unknown",
+        quality: qualityLabel,
+      });
+    } catch {
+      // Ignore GA errors
+    }
+
+    if (typeof window !== "undefined" && typeof window.gtag === "function") {
+      try {
+        window.gtag("event", "download_click", {
+          platform: platform || "unknown",
+          quality: qualityLabel,
+        });
+      } catch {
+        // Ignore fallback errors
+      }
+    }
+  };
 
   return (
     <div className="w-full max-w-2xl mx-auto mt-8 p-6 rounded-2xl bg-slate-900/90 border border-slate-800 backdrop-blur-xl shadow-2xl space-y-6 animate-fadeIn text-left">
@@ -178,6 +207,7 @@ export function VideoPreviewCard({ data, onReset }: VideoPreviewCardProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     download
+                    onClick={() => trackDownloadEvent(fmt.resolution || label)}
                     className={`w-full py-3 px-4 rounded-xl font-semibold text-xs sm:text-sm transition-all flex items-center justify-between gap-2 border ${
                       idx === formats.length - 1
                         ? "text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 border-emerald-400 shadow-md shadow-emerald-500/10"
@@ -202,6 +232,7 @@ export function VideoPreviewCard({ data, onReset }: VideoPreviewCardProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 download
+                onClick={() => trackDownloadEvent("HD MP4")}
                 className="w-full py-3.5 px-6 rounded-xl font-bold text-sm text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2"
               >
                 <Download className="w-4 h-4" />

@@ -20,7 +20,7 @@ export default function PrivacyPage() {
         <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
           Gizlilik Politikası
         </h1>
-        <p className="text-xs text-slate-400">Son güncelleme: 25 Temmuz 2026</p>
+        <p className="text-xs text-slate-400">Son güncelleme: 26 Temmuz 2026</p>
       </div>
 
       {/* İçerik Kartı */}
@@ -54,9 +54,12 @@ export default function PrivacyPage() {
             <Cookie className="w-5 h-5 text-emerald-400" />
             <span>3. Çerezler (Cookies) ve Analitik Veriler</span>
           </h2>
-          <ul className="list-disc pl-5 space-y-2 text-slate-300">
+          <p className="text-slate-300">
+            Sitemizde ziyaretçi istatistiklerini anlamak için Google Analytics kullanılmaktadır. Bu araç, çerezler aracılığıyla anonim kullanım verileri toplar (hangi sayfaların ziyaret edildiği, hangi platform linklerinin indirildiği gibi). Bu veriler kişisel kimlik bilgisiyle ilişkilendirilmez.
+          </p>
+          <ul className="list-disc pl-5 space-y-2 text-slate-300 pt-2">
             <li>
-              <strong>Kullanım İstatistikleri:</strong> Hizmet kalitesini artırmak ve performans takibi yapmak amacıyla yalnızca <strong>anonim ve kişisel olmayan</strong> genel istatistiksel veriler (Google Analytics vb.) toplanabilir.
+              <strong>Kullanım İstatistikleri:</strong> Hizmet kalitesini artırmak ve performans takibi yapmak amacıyla yalnızca <strong>anonim ve kişisel olmayan</strong> genel istatistiksel veriler (Google Analytics 4 vb.) toplanabilir.
             </li>
             <li>
               <strong>Üçüncü Taraf Reklam Çerezleri (Google AdSense):</strong> Sitemizde gösterilen reklamlar kapsamında Google AdSense gibi üçüncü taraf sağlayıcılar, kullanıcılara ilgi alanlarına göre reklam sunmak amacıyla tarayıcınıza çerez (cookie) yerleştirebilir.
