@@ -208,11 +208,15 @@ async function checkVideoCodec(filePath: string): Promise<string> {
 }
 
 /**
- * FFmpeg transcode komutunu çalıştırır (60 saniye kesin zaman aşımı ile).
+ * FFmpeg transcode komutunu çalıştırır (Video süresine göre dinamik zaman aşımı ve CRF 26 ile).
  * Progress spam'ını engellemek için -loglevel error ve -nostats kullanılır.
  */
-async function runFfmpegTranscode(inputPath: string, outputPath: string): Promise<void> {
-  console.log(`[ffmpeg] Transcode başlatıldı: ${inputPath} -> ${outputPath}`);
+async function runFfmpegTranscode(inputPath: string, outputPath: string, durationSec?: number): Promise<void> {
+  const duration = durationSec && durationSec > 0 ? durationSec : 30;
+  // Dinamik timeout: Video süresi * 3.5 saniye (Minimum 60sn, Maksimum 240sn / 4 dk)
+  const timeoutMs = Math.min(240000, Math.max(60000, Math.ceil(duration * 3500)));
+
+  console.log(`[ffmpeg] Transcode başlatıldı (Video Süresi: ${duration}s, Timeout: ${timeoutMs / 1000}s, CRF: 26): ${inputPath} -> ${outputPath}`);
   try {
     await execFileAsync("ffmpeg", [
       "-y",
@@ -223,14 +227,14 @@ async function runFfmpegTranscode(inputPath: string, outputPath: string): Promis
       "-map", "0:a:0?",      // Açık stream seçimi: ilk ses akışı (varsa)
       "-c:v", "libx264",
       "-preset", "ultrafast",
-      "-crf", "22",
+      "-crf", "26",           // Hızlı ve hafif kodlama (düşük CPU & bellek kullanımı)
       "-pix_fmt", "yuv420p",  // Mobil uyumluluk (Android/iOS native player)
       "-c:a", "aac",         // Ses codec'ini de AAC'ye dönüştür (mobil uyum)
       "-b:a", "128k",
       "-movflags", "+faststart",  // moov atom'u dosya başına taşı (mobil streaming)
       outputPath
     ], {
-      timeout: 60000, // 60 saniye kesin zaman aşımı
+      timeout: timeoutMs,
       maxBuffer: 50 * 1024 * 1024, // 50MB tampon bellek
     });
 
@@ -378,7 +382,7 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
       const transcodePath = path.join(TEMP_DIR, `${fileId}_h264.mp4`);
       const transcodeStart = Date.now();
 
-      await runFfmpegTranscode(outputPath, transcodePath);
+      await runFfmpegTranscode(outputPath, transcodePath, duration);
 
       const transcodeDuration = Date.now() - transcodeStart;
       console.log(`[ytdlp service] H.264 transcode BAŞARIYLA tamamlandı (Süre: ${transcodeDuration}ms)`);
