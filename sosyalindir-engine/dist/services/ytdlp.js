@@ -125,9 +125,10 @@ async function runFfmpegTranscode(inputPath, outputPath) {
         console.log(`[ffmpeg] Transcode başarıyla (exitCode 0) tamamlandı.`);
     }
     catch (err) {
-        console.error(`[ffmpeg process exit info]: code=${err.code}, signal=${err.signal}, killed=${err.killed}`);
+        console.error(`[ffmpeg process exit info]: code=${err.code}, signal=${err.signal}, killed=${err.killed}, stderr=${err.stderr || err.message}`);
         if (err.killed || err.signal === "SIGTERM" || err.signal === "SIGKILL" || err.code === "ETIMEDOUT") {
-            throw new Error("Video dönüştürme işlemi zaman aşımına veya bellek sınırına uğradı.");
+            const cleanDetail = extractCleanErrorMessage(err);
+            throw new Error(`Video dönüştürme zaman aşıldı/kesildi (${err.signal || err.code}): ${cleanDetail}`);
         }
         const cleanErr = extractCleanErrorMessage(err);
         console.error(`[ffmpeg] Transcode başarısız oldu: ${cleanErr}`);
@@ -176,7 +177,7 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
         await execFileAsync("yt-dlp", [
             "-f", "bestvideo[vcodec*='avc1']+bestaudio/bestvideo[vcodec*='h264']+bestaudio/bestvideo+bestaudio/best",
             "--merge-output-format", "mp4",
-            "--postprocessor-args", "ffmpeg:-c copy -movflags +faststart",
+            "--postprocessor-args", "ffmpeg:-movflags +faststart",
             "--no-warnings",
             "--no-playlist",
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
@@ -185,7 +186,7 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
             videoUrl,
         ], {
             maxBuffer: 50 * 1024 * 1024,
-            timeout: 60000,
+            timeout: 120000,
         });
         // İndirilen dosyanın codec'ini ffprobe ile doğrula
         const detectedCodec = await checkVideoCodec(outputPath);
