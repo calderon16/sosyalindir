@@ -133,8 +133,8 @@ async function runFfmpegTranscode(inputPath: string, outputPath: string): Promis
       "-map", "0:v:0",       // Açık stream seçimi: ilk video akışı
       "-map", "0:a:0?",      // Açık stream seçimi: ilk ses akışı (varsa)
       "-c:v", "libx264",
-      "-preset", "fast",
-      "-crf", "18",
+      "-preset", "ultrafast",
+      "-crf", "22",
       "-pix_fmt", "yuv420p",  // Mobil uyumluluk (Android/iOS native player)
       "-c:a", "aac",         // Ses codec'ini de AAC'ye dönüştür (mobil uyum)
       "-b:a", "128k",
