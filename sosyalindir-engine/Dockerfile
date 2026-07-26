@@ -1,7 +1,7 @@
 # Node 20 Slim Base Image
 FROM node:20-slim
 
-# Gerekli sistem paketleri: python3, ffmpeg, curl, ca-certificates
+# Gerekli sistem paketleri: python3, python3-pip, ffmpeg, curl, ca-certificates
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
@@ -10,9 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# En güncel yt-dlp sürümünü indir ve çalıştırılabilir yap
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp
+# En güncel yt-dlp sürümünü pip ile yükle
+RUN pip install --no-cache-dir -U --break-system-packages yt-dlp || pip install --no-cache-dir -U yt-dlp
 
 # Çalışma dizinini ayarla
 WORKDIR /app

@@ -96,9 +96,8 @@ async function checkVideoCodec(filePath) {
     }
 }
 /**
- * FFmpeg transcode komutunu çalıştırır.
+ * FFmpeg transcode komutunu çalıştırır (60 saniye kesin zaman aşımı ile).
  * Progress spam'ını engellemek için -loglevel error ve -nostats kullanılır.
- * Yüksek maxBuffer (50MB) ve timeout (120sn) ayarlanmıştır.
  */
 async function runFfmpegTranscode(inputPath, outputPath) {
     console.log(`[ffmpeg] Transcode başlatıldı: ${inputPath} -> ${outputPath}`);
@@ -119,7 +118,7 @@ async function runFfmpegTranscode(inputPath, outputPath) {
             "-movflags", "+faststart", // moov atom'u dosya başına taşı (mobil streaming)
             outputPath
         ], {
-            timeout: 120000, // 2 dakika zaman aşımı
+            timeout: 60000, // 60 saniye kesin zaman aşımı
             maxBuffer: 50 * 1024 * 1024, // 50MB tampon bellek
         });
         console.log(`[ffmpeg] Transcode başarıyla (exitCode 0) tamamlandı.`);
@@ -127,8 +126,7 @@ async function runFfmpegTranscode(inputPath, outputPath) {
     catch (err) {
         console.error(`[ffmpeg process exit info]: code=${err.code}, signal=${err.signal}, killed=${err.killed}, stderr=${err.stderr || err.message}`);
         if (err.killed || err.signal === "SIGTERM" || err.signal === "SIGKILL" || err.code === "ETIMEDOUT") {
-            const cleanDetail = extractCleanErrorMessage(err);
-            throw new Error(`Video dönüştürme zaman aşıldı/kesildi (${err.signal || err.code}): ${cleanDetail}`);
+            throw new Error("Video işlenirken zaman aşımına uğradı, farklı bir video deneyin veya birkaç dakika sonra tekrar deneyin.");
         }
         const cleanErr = extractCleanErrorMessage(err);
         console.error(`[ffmpeg] Transcode başarısız oldu: ${cleanErr}`);
@@ -189,6 +187,10 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
             maxBuffer: 50 * 1024 * 1024,
             timeout: 120000,
         });
+        // İndirilen ham dosyanın bütünlüğünü kontrol et
+        if (!fs_1.default.existsSync(outputPath) || fs_1.default.statSync(outputPath).size < 1000) {
+            throw new Error("Video dosyası eksik veya kaynak sunucu kısıtlaması nedeniyle indirilemedi.");
+        }
         // İndirilen dosyanın codec'ini ffprobe ile doğrula
         const detectedCodec = await checkVideoCodec(outputPath);
         console.log(`[ytdlp service] ffprobe ile tespit edilen video codec: '${detectedCodec}'`);
@@ -239,13 +241,21 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
     }
     catch (err) {
         const cleanDetail = extractCleanErrorMessage(err);
-        if (cleanDetail.includes("URI malformed") || cleanDetail.includes("URIError")) {
+        const lowerDetail = cleanDetail.toLowerCase();
+        if (lowerDetail.includes("uri malformed") || lowerDetail.includes("urierror")) {
             throw new Error("Geçersiz bağlantı formatı, lütfen linki kontrol edip tekrar yapıştırın.");
         }
-        if (cleanDetail.includes("Private video") || cleanDetail.includes("login")) {
+        if (lowerDetail.includes("isn't available to everyone") ||
+            lowerDetail.includes("empty media response") ||
+            lowerDetail.includes("ip address is blocked") ||
+            lowerDetail.includes("login") ||
+            lowerDetail.includes("rate limit")) {
+            throw new Error("Sosyal medya sunucusu bu içerik için geçici erişim kısıtlaması uyguluyor (Meta IP Kısıtlaması). Lütfen birkaç dakika sonra tekrar deneyiniz.");
+        }
+        if (lowerDetail.includes("private video")) {
             throw new Error("Bu video gizli ya da erişime kapalı.");
         }
-        if (cleanDetail.includes("Video unavailable") || cleanDetail.includes("Not Found")) {
+        if (lowerDetail.includes("video unavailable") || lowerDetail.includes("not found")) {
             throw new Error("Video bulunamadı veya silinmiş olabilir.");
         }
         throw new Error(`Video çözümlenemedi: ${cleanDetail}`);
