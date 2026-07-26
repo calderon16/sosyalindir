@@ -13,6 +13,18 @@ export const metadata: Metadata = {
   title: "SosyalIndir — Instagram, TikTok & Facebook Video İndirici",
   description: "Instagram Reels, TikTok ve Facebook Reels videolarını filigransız, hızlı ve %100 ücretsiz orijinal kalitede indirin. (YouTube Shorts çok yakında!)",
   keywords: ["video indir", "instagram reels indir", "tiktok video indir", "facebook reels indir", "filigransız tiktok", "youtube shorts indir"],
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/icon.png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   openGraph: {
     title: "SosyalIndir — Ücretsiz & Hızlı Sosyal Medya Video İndirici",
     description: "Instagram Reels, TikTok ve Facebook Reels videolarını filigransız ve orijinal kalitede indirin. (YouTube Shorts çok yakında!)",
