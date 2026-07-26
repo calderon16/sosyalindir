@@ -10,8 +10,75 @@ export const metadata: Metadata = {
 };
 
 export default function TikTokVideoPage() {
+  const faqSchema = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Videolar gerçekten logosuz mu iniyor?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Evet! Gelişmiş indirme altyapımız TikTok sunucularındaki filigran uygulanmamış ham veriyi tespit ederek videoyu ek bir logo olmadan sunar."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "İndirme işlemi ücretli mi ya da sınır var mı?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "SosyalIndir tamamen ücretsizdir. Günlük veya aylık hiçbir indirme sınırı olmadan istediğiniz kadar TikTok videosunu indirebilirsiniz."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Mobil cihazlarda (iPhone & Android) çalışır mı?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Evet, tüm mobil tarayıcılarda (Safari, Chrome) sorunsuz çalışır. İndirilen videolar cihazınızın galerisine veya İndirilenler klasörüne kaydedilir."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "İndirdiğim TikTok videolarını kendi kanalımda yayınlayabilir miyim?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Videoların telif hakları içerik üreticisine aittir. İzinsiz veya kaynak göstermeden paylaşılan içerikler telif sorunlarına yol açabilir. Videoları paylaşırken orijinal sahibine atıfta bulunmanızı tavsiye ederiz."
+        }
+      }
+    ]
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Ana Sayfa",
+        "item": "https://sosyalindirapp.com"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "TikTok Video İndirme",
+        "item": "https://sosyalindirapp.com/tiktok-video-indir"
+      }
+    ]
+  };
+
   return (
     <div className="w-full py-12 md:py-16 px-4 sm:px-6 max-w-4xl mx-auto space-y-16">
+      {/* Structural Data (JSON-LD) */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       
       {/* Hero Alanı */}
       <div className="text-center space-y-4">
@@ -84,7 +151,7 @@ export default function TikTokVideoPage() {
           <div className="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 space-y-2">
             <h3 className="font-semibold text-white text-sm">Videolar gerçekten logosuz mu iniyor?</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Evet! Gelişmiş indirme altyapımız TikTok sunucularındaki filigran uygulanmamış hamp veriyi tespit ederek videoyu ek bir logo olmadan sunar.
+              Evet! Gelişmiş indirme altyapımız TikTok sunucularındaki filigran uygulanmamış ham veriyi tespit ederek videoyu ek bir logo olmadan sunar.
             </p>
           </div>
 
