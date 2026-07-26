@@ -108,10 +108,15 @@ async function runFfmpegTranscode(inputPath, outputPath) {
             "-loglevel", "error",
             "-nostats",
             "-i", inputPath,
+            "-map", "0:v:0", // Açık stream seçimi: ilk video akışı
+            "-map", "0:a:0?", // Açık stream seçimi: ilk ses akışı (varsa)
             "-c:v", "libx264",
             "-preset", "fast",
             "-crf", "18",
-            "-c:a", "copy",
+            "-pix_fmt", "yuv420p", // Mobil uyumluluk (Android/iOS native player)
+            "-c:a", "aac", // Ses codec'ini de AAC'ye dönüştür (mobil uyum)
+            "-b:a", "128k",
+            "-movflags", "+faststart", // moov atom'u dosya başına taşı (mobil streaming)
             outputPath
         ], {
             timeout: 120000, // 2 dakika zaman aşımı
@@ -171,7 +176,7 @@ async function resolveVideoWithYtDlp(videoUrl, platform) {
         await execFileAsync("yt-dlp", [
             "-f", "bestvideo[vcodec*='avc1']+bestaudio/bestvideo[vcodec*='h264']+bestaudio/bestvideo+bestaudio/best",
             "--merge-output-format", "mp4",
-            "--postprocessor-args", "ffmpeg:-c copy",
+            "--postprocessor-args", "ffmpeg:-c copy -movflags +faststart",
             "--no-warnings",
             "--no-playlist",
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
