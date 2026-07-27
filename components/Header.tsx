@@ -1,11 +1,15 @@
 import React from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/routing";
 import { Download, ShieldCheck, Zap } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useTranslations } from "next-intl";
 
 /**
  * Minimalist, reklam kirliliği içermeyen temiz Header bileşeni
  */
 export function Header() {
+  const t = useTranslations("Header");
+
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-slate-900/80 border-b border-slate-800/80">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -21,17 +25,20 @@ export function Header() {
           </span>
         </Link>
 
-        {/* Minimal Bilgi Rozeti & Hızlı Linkler */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+        {/* Minimal Bilgi Rozeti, Hızlı Linkler & Dil Değiştirici */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
             <Zap className="w-3.5 h-3.5 fill-emerald-400/20" />
             <span>Orijinal Kalite & Filigransız</span>
           </div>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-slate-400 bg-slate-800/60 border border-slate-700/50">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium text-slate-400 bg-slate-800/60 border border-slate-700/50">
             <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
             <span>%100 Ücretsiz</span>
           </div>
+
+          {/* TR / EN Dil Seçeneği */}
+          <LanguageSwitcher />
         </div>
       </div>
     </header>

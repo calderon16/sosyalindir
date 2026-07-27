@@ -1,0 +1,77 @@
+{
+  "Header": {
+    "brandName": "SosyalIndir",
+    "home": "Home",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "facebook": "Facebook",
+    "youtubeShorts": "YouTube Shorts",
+    "comingSoon": "Soon"
+  },
+  "TrustBadges": {
+    "noPassword": "No Passwords Needed",
+    "noDataRetention": "Zero Data Retention",
+    "hundredPercentFree": "100% Free Forever"
+  },
+  "Hero": {
+    "pillText": "Just Paste, We Handle the Rest",
+    "titleLine1": "Download Social Media Videos",
+    "titleGradient": "in Original HD Quality",
+    "subtitle": "Save your favorite videos in seconds without registration, complex steps, or annoying ads.",
+    "supportedPlatforms": "Instagram, TikTok, and Facebook Reels supported (YouTube Shorts coming soon)"
+  },
+  "UrlInput": {
+    "placeholder": "Paste Instagram, TikTok or Facebook video link...",
+    "paste": "Paste",
+    "download": "Download",
+    "processing": "Processing...",
+    "invalidUrl": "Please enter a valid Instagram, TikTok, or Facebook video link."
+  },
+  "VideoPreview": {
+    "hdQuality": "High Quality (HD)",
+    "sdQuality": "Standard Quality (SD)",
+    "noWatermark": "No Watermark",
+    "downloadVideo": "Download Video",
+    "reset": "Download Another Video"
+  },
+  "Features": {
+    "instantTitle": "Instant Download",
+    "instantDesc": "No waiting time. Paste your link and download directly in seconds.",
+    "noWatermarkTitle": "No-Watermark TikTok",
+    "noWatermarkDesc": "Save TikTok videos in original resolution without logos or watermarks.",
+    "secureTitle": "Private & Secure",
+    "secureDesc": "No videos are stored on our servers; your privacy is fully protected."
+  },
+  "About": {
+    "badge": "Our Story & Approach",
+    "heading": "Why We Built SosyalIndir",
+    "paragraph": "We noticed that most online video downloaders are bloated with fake 'Download' buttons, misleading ads, and pop-up warnings. We built SosyalIndir as a clean, lightning-fast alternative that respects your privacy and requires no registration.",
+    "card1Title": "100% Data Privacy",
+    "card1Desc": "We never store your downloaded videos on our servers. As soon as your download completes, temporary streams are deleted.",
+    "card2Title": "Public & Transparent",
+    "card2Desc": "We never share your data. Everyone receives equal, high-speed access with zero hidden algorithms or paywalls.",
+    "contactPrompt": "For feedback, suggestions, or DMCA notices:",
+    "contactBtn": "Contact Us"
+  },
+  "Footer": {
+    "desc": "Download Instagram Reels, TikTok, and Facebook Reels videos in high quality with no watermark.",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "dmca": "DMCA Notice",
+    "contact": "Contact Us",
+    "copyright": "© {year} SosyalIndir. All rights reserved.",
+    "disclaimer": "SosyalIndir is not affiliated with any social media platform. Copyright responsibilities belong solely to the user."
+  },
+  "InstagramPage": {
+    "title": "Instagram Reels Downloader — Original HD Quality",
+    "description": "Download Instagram Reels and videos in high quality for free with no watermark."
+  },
+  "TikTokPage": {
+    "title": "TikTok Video Downloader — No Watermark & Original Quality",
+    "description": "Download TikTok videos without watermark or logos in original MP4 resolution."
+  },
+  "FacebookPage": {
+    "title": "Facebook Reels Downloader — Fast & Original HD Quality",
+    "description": "Save Facebook Reels and post videos fast in original resolution."
+  }
+}

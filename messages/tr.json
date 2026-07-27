@@ -1,0 +1,77 @@
+{
+  "Header": {
+    "brandName": "SosyalIndir",
+    "home": "Ana Sayfa",
+    "instagram": "Instagram",
+    "tiktok": "TikTok",
+    "facebook": "Facebook",
+    "youtubeShorts": "YouTube Shorts",
+    "comingSoon": "Yakında"
+  },
+  "TrustBadges": {
+    "noPassword": "Şifreni İstemiyoruz",
+    "noDataRetention": "Veri Saklamıyoruz",
+    "hundredPercentFree": "%100 Ücretsiz"
+  },
+  "Hero": {
+    "pillText": "Sadece Yapıştır, Gerisini Biz Halledelim",
+    "titleLine1": "Sosyal Medya Videolarını",
+    "titleGradient": "Orijinal Kalitede İndirin",
+    "subtitle": "Kayıt olmadan, karmaşık adımlar ve sinir bozucu reklamlar olmadan videolarınızı saniyeler içinde cihazınıza kaydedin.",
+    "supportedPlatforms": "Instagram, TikTok ve Facebook Reels destekleniyor (YouTube Shorts yakında)"
+  },
+  "UrlInput": {
+    "placeholder": "Instagram, TikTok veya Facebook video bağlantısını yapıştırın...",
+    "paste": "Yapıştır",
+    "download": "İndir",
+    "processing": "Çözümleniyor...",
+    "invalidUrl": "Lütfen geçerli bir Instagram, TikTok veya Facebook video bağlantısı girin."
+  },
+  "VideoPreview": {
+    "hdQuality": "Yüksek Kalite (HD)",
+    "sdQuality": "Standart Kalite (SD)",
+    "noWatermark": "Filigransız",
+    "downloadVideo": "Videoyu İndir",
+    "reset": "Yeni Video İndir"
+  },
+  "Features": {
+    "instantTitle": "Anında İndirme",
+    "instantDesc": "Bekleme süresi yok. Linki yapıştırın ve saniyeler içinde doğrudan indirin.",
+    "noWatermarkTitle": "Filigransız TikTok",
+    "noWatermarkDesc": "TikTok videolarını logo ve filigran olmadan orijinal netliğinde kaydedin.",
+    "secureTitle": "Gizli & Güvenli",
+    "secureDesc": "Sunucularımızda hiçbir videonuz saklanmaz, verileriniz tamamen güvendedir."
+  },
+  "About": {
+    "badge": "Hikayemiz ve Yaklaşımımız",
+    "heading": "Neden SosyalIndir'i Yaptık?",
+    "paragraph": "İnternetteki çoğu video dönüştürücü sitenin sahte \"İndir\" butonları, yanıltıcı reklamlar ve pop-up virüs uyarıları ile dolup taştığını gördük. SosyalIndir'i, kullanıcıları kandırmayan, hiçbir şifre veya kayıt istemeyen, yalın ve yıldırım hızında bir alternatif olarak geliştirdik.",
+    "card1Title": "%100 Veri Gizliliği",
+    "card1Desc": "Sunucularımızda hiçbir videonuzu saklamıyoruz. İndirme işlemi tamamlandığı an medya akışı sunucudan tamamen temizlenir.",
+    "card2Title": "Sana Özel Değil, Herkese Açık",
+    "card2Desc": "Verilerinizi kimseyle paylaşmayız. Herkese eşit ve tam şeffaflıkla hizmet veririz; gizli bir algoritma veya öncelikli VIP sırası yoktur.",
+    "contactPrompt": "Görüş, öneri veya telif bildirimleriniz için bize ulaşın:",
+    "contactBtn": "Bize Ulaşın"
+  },
+  "Footer": {
+    "desc": "Instagram, TikTok ve Facebook Reels videolarını filigransız ve orijinal kalitede anında indirin.",
+    "terms": "Kullanım Koşulları",
+    "privacy": "Gizlilik Politikası",
+    "dmca": "Telif Bildirimi (DMCA)",
+    "contact": "İletişim",
+    "copyright": "© {year} SosyalIndir. Tüm hakları saklıdır.",
+    "disclaimer": "SosyalIndir hiçbir sosyal medya platformu ile bağlantılı değildir. İndirilen içeriklerin telif sorumluluğu kullanıcıya aittir."
+  },
+  "InstagramPage": {
+    "title": "Instagram Reels İndir — Orijinal HD Video İndirici",
+    "description": "Instagram Reels ve videolarını filigransız, yüksek kalitede ve ücretsiz indirin."
+  },
+  "TikTokPage": {
+    "title": "TikTok Video İndir — Filigransız & Logosuz MP4 İndirici",
+    "description": "TikTok videolarını filigransız ve logosuz olarak orijinal kalitede cihazınıza indirin."
+  },
+  "FacebookPage": {
+    "title": "Facebook Reels İndir — Orijinal HD Kalitede Hızlı İndirici",
+    "description": "Facebook Reels ve gönderi videolarını orijinal netliğinde hızlıca kaydedin."
+  }
+}
