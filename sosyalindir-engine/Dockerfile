@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # yt-dlp + curl-cffi (Facebook/Meta için modern TLS/browser impersonation desteği)
 # curl-cffi: yt-dlp'nin Facebook extractorı için ZORUNLU bağımlılık (2026 itibarıyla)
 # --break-system-packages: Debian slim'in dışarıdan pip kurulumunu engellememesi için
-ARG CACHEBUST=1
+ARG CACHEBUST=2
 RUN pip install --no-cache-dir -U --break-system-packages \
     "yt-dlp[default]" \
     curl-cffi \
