@@ -11,7 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # En güncel yt-dlp sürümünü pip ile yükle
+# --no-cache-dir: pip cache kullanmaz (her zaman taze indirme)
+# -U: mevcut sürümü günceller (upgrade)
+# NOT: Ayrıca entrypoint.sh her container başlangıcında da güncelleme yapar
 RUN pip install --no-cache-dir -U --break-system-packages yt-dlp || pip install --no-cache-dir -U yt-dlp
+
+# yt-dlp sürümünü build loguna yaz (doğrulama için)
+RUN echo "Build zamanı yt-dlp sürümü: $(yt-dlp --version)"
 
 # Çalışma dizinini ayarla
 WORKDIR /app
@@ -25,11 +31,15 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
+# Entrypoint script'ini kopyala ve çalıştırılabilir yap
+COPY entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
 # Ortam değişkenleri
 ENV NODE_ENV=production
 ENV PORT=4000
 
 EXPOSE 4000
 
-# Uygulamayı başlat
-CMD ["node", "dist/index.js"]
+# Her container başlangıcında yt-dlp güncelleme + uygulama başlatma
+CMD ["./entrypoint.sh"]

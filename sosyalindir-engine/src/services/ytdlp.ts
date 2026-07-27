@@ -37,6 +37,7 @@ if (!fs.existsSync(TEMP_DIR)) {
 }
 
 const COOKIES_PATH = path.join(TEMP_DIR, "cookies.txt");
+const FB_COOKIES_PATH = path.join(TEMP_DIR, "fb_cookies.txt");
 
 // 10 dakikadan eski geçici dosyaları otomatik temizle
 setInterval(() => {
@@ -105,6 +106,72 @@ async function ensureAutoGuestCookies(): Promise<void> {
 }
 
 /**
+ * Otomatik Facebook Misafir Çerezi (Guest Session) Oluşturucu.
+ * Facebook'un genel sayfasına anonim bir istek atarak datr/sb/fr çerezlerini yakalar ve
+ * yt-dlp'nin kullanabileceği Netscape formatında fb_cookies.txt dosyasına yazar.
+ * Bu mekanizma, Railway'in paylaşımlı IP'sinin Meta engelini kısmen bypass eder.
+ */
+async function ensureFacebookGuestCookies(forceRefresh = false): Promise<void> {
+  if (process.env.FACEBOOK_COOKIES) return; // Manuel çerez varsa dokunma
+
+  // Daha önce çekilmiş çerez dosyası varsa ve zorla yenileme istenmiyorsa kullan
+  if (!forceRefresh && fs.existsSync(FB_COOKIES_PATH)) {
+    const age = Date.now() - fs.statSync(FB_COOKIES_PATH).mtimeMs;
+    if (age < 30 * 60 * 1000) return; // 30 dakikadan yeni ise yeniden çekme
+  }
+
+  try {
+    const setCookies = await new Promise<string[]>((resolve) => {
+      const req = https.get("https://www.facebook.com/", {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Sec-Fetch-Site": "none",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-User": "?1",
+          "Sec-Fetch-Dest": "document",
+          "Upgrade-Insecure-Requests": "1"
+        },
+        timeout: 10000
+      }, (res) => {
+        resolve(res.headers["set-cookie"] || []);
+      });
+      req.on("error", () => resolve([]));
+      req.on("timeout", () => { req.destroy(); resolve([]); });
+    });
+
+    if (setCookies.length > 0) {
+      const cookieLines = [
+        "# Netscape HTTP Cookie File",
+        "# http://curl.haxx.se/rfc/cookie_spec.html",
+        "# Auto-generated Facebook guest cookies",
+        ""
+      ];
+
+      for (const cookieHeader of setCookies) {
+        const parts = cookieHeader.split(";")[0].split("=");
+        if (parts.length >= 2) {
+          const name = parts[0].trim();
+          const value = parts.slice(1).join("=").trim();
+          if (name && value) {
+            // Facebook için hem .facebook.com hem facebook.com alt domain formatı
+            cookieLines.push(`.facebook.com\tTRUE\t/\tFALSE\t${Math.floor(Date.now() / 1000) + 864000}\t${name}\t${value}`);
+          }
+        }
+      }
+
+      fs.writeFileSync(FB_COOKIES_PATH, cookieLines.join("\n"), "utf-8");
+      console.log(`[ytdlp service] Otomatik Facebook misafir çerezleri yenilendi (${setCookies.length} adet).`);
+    } else {
+      console.log(`[ytdlp service] Facebook'tan çerez alınamadı (0 set-cookie başlığı).`);
+    }
+  } catch (e) {
+    console.log(`[ytdlp service] Facebook otomatik çerez alma hatası: ${e}`);
+  }
+}
+
+/**
  * Gerekli durumlarda ortama eklenen proxy veya çerez parametrelerini hazırlar
  */
 function buildYtdlpExtraArgs(platform: string): string[] {
@@ -116,27 +183,46 @@ function buildYtdlpExtraArgs(platform: string): string[] {
     extraArgs.push("--proxy", proxyUrl);
   }
 
-  // Cookies dosyası desteği (Ortam değişkeninden veya otomatik oluşturulan cookies.txt'den okur)
-  if (process.env.INSTAGRAM_COOKIES) {
-    try {
-      const content = Buffer.from(process.env.INSTAGRAM_COOKIES, "base64").toString("utf-8");
-      fs.writeFileSync(COOKIES_PATH, content, "utf-8");
-    } catch {
-      fs.writeFileSync(COOKIES_PATH, process.env.INSTAGRAM_COOKIES, "utf-8");
+  if (platform === "facebook") {
+    // Facebook: Manuel FACEBOOK_COOKIES env değişkeni varsa kullan, yoksa otomatik çekilen fb_cookies.txt
+    if (process.env.FACEBOOK_COOKIES) {
+      try {
+        const content = Buffer.from(process.env.FACEBOOK_COOKIES, "base64").toString("utf-8");
+        fs.writeFileSync(FB_COOKIES_PATH, content, "utf-8");
+      } catch {
+        fs.writeFileSync(FB_COOKIES_PATH, process.env.FACEBOOK_COOKIES, "utf-8");
+      }
     }
-  }
-
-  if (fs.existsSync(COOKIES_PATH)) {
-    extraArgs.push("--cookies", COOKIES_PATH);
-  }
-
-  // Meta (Instagram / Facebook) bot/IP kısıtlamalarını aşan mobil başlıklar
-  if (platform === "instagram") {
+    if (fs.existsSync(FB_COOKIES_PATH)) {
+      extraArgs.push("--cookies", FB_COOKIES_PATH);
+    }
+    // Facebook'a özel başlıklar: bot tespitini azaltır
     extraArgs.push(
-      "--add-header", "X-IG-App-ID: 936619743392459",
       "--add-header", "Sec-Fetch-Mode: navigate",
+      "--add-header", "Sec-Fetch-Site: none",
       "--add-header", "Accept-Language: en-US,en;q=0.9"
     );
+  } else {
+    // Instagram ve diğerleri: Mevcut INSTAGRAM_COOKIES veya otomatik çekilen cookies.txt
+    if (process.env.INSTAGRAM_COOKIES) {
+      try {
+        const content = Buffer.from(process.env.INSTAGRAM_COOKIES, "base64").toString("utf-8");
+        fs.writeFileSync(COOKIES_PATH, content, "utf-8");
+      } catch {
+        fs.writeFileSync(COOKIES_PATH, process.env.INSTAGRAM_COOKIES, "utf-8");
+      }
+    }
+    if (fs.existsSync(COOKIES_PATH)) {
+      extraArgs.push("--cookies", COOKIES_PATH);
+    }
+    // Meta (Instagram) bot/IP kısıtlamalarını aşan özel başlıklar
+    if (platform === "instagram") {
+      extraArgs.push(
+        "--add-header", "X-IG-App-ID: 936619743392459",
+        "--add-header", "Sec-Fetch-Mode: navigate",
+        "--add-header", "Accept-Language: en-US,en;q=0.9"
+      );
+    }
   }
 
   return extraArgs;
@@ -264,12 +350,24 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
     const startTime = Date.now();
     console.log(`[ytdlp service] Resolve başlatılıyor (${platform}): ${videoUrl}`);
 
-    // Instagram için otomatik misafir çerezi garantile
+    // Platform'a özel otomatik misafir çerezi garantile
     if (platform === "instagram") {
       await ensureAutoGuestCookies();
+    } else if (platform === "facebook") {
+      await ensureFacebookGuestCookies();
     }
 
     let extraArgs = buildYtdlpExtraArgs(platform);
+
+    const userAgent = platform === "instagram"
+      ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1"
+      : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+    const referer = platform === "tiktok"
+      ? "https://www.tiktok.com/"
+      : platform === "instagram"
+        ? "https://www.instagram.com/"
+        : "https://www.facebook.com/";
 
     let stdoutData = "";
     try {
@@ -280,8 +378,8 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
           "--no-warnings",
           "--no-playlist",
           "--skip-download",
-          "--user-agent", platform === "instagram" ? "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1" : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "--referer", platform === "tiktok" ? "https://www.tiktok.com/" : platform === "instagram" ? "https://www.instagram.com/" : "https://www.facebook.com/",
+          "--user-agent", userAgent,
+          "--referer", referer,
           ...extraArgs,
           videoUrl,
         ],
@@ -292,8 +390,10 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
       );
       stdoutData = stdout;
     } catch (firstErr: any) {
+      const firstErrMsg = extractCleanErrorMessage(firstErr).toLowerCase();
+
       // Instagram boş yanıt verirse otomatik misafir çerezlerini yenile ve 1 kez tekrar dene
-      if (platform === "instagram" && extractCleanErrorMessage(firstErr).toLowerCase().includes("empty media response")) {
+      if (platform === "instagram" && firstErrMsg.includes("empty media response")) {
         console.log(`[ytdlp service] Instagram boş yanıt verdi, otomatik misafir çerezi yenilenip tekrar deneniyor...`);
         await ensureAutoGuestCookies();
         extraArgs = buildYtdlpExtraArgs(platform);
@@ -307,6 +407,30 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
             "--skip-download",
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "--referer", "https://www.instagram.com/",
+            ...extraArgs,
+            videoUrl,
+          ],
+          {
+            maxBuffer: 50 * 1024 * 1024,
+            timeout: 30000,
+          }
+        );
+        stdoutData = stdout;
+      } else if (platform === "facebook" && (firstErrMsg.includes("cannot parse data") || firstErrMsg.includes("unsupported url") || firstErrMsg.includes("parse"))) {
+        // Facebook parse hatası: çerezleri zorla yenile ve 1 kez tekrar dene
+        console.log(`[ytdlp service] Facebook parse hatası, misafir çerezi zorla yenilenip tekrar deneniyor...`);
+        await ensureFacebookGuestCookies(true); // forceRefresh = true
+        extraArgs = buildYtdlpExtraArgs(platform);
+
+        const { stdout } = await execFileAsync(
+          "yt-dlp",
+          [
+            "-j",
+            "--no-warnings",
+            "--no-playlist",
+            "--skip-download",
+            "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "--referer", "https://www.facebook.com/",
             ...extraArgs,
             videoUrl,
           ],
