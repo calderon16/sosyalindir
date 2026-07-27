@@ -339,6 +339,15 @@ async function runFfmpegTranscode(inputPath: string, outputPath: string, duratio
 }
 
 /**
+ * Facebook URL'sini mobil versiyona çevirir (m.facebook.com).
+ * Mobil sayfa, masaüstü sayfadan farklı (daha basit) bir yapı kullanır ve
+ * yt-dlp'nin parse etmesi genellikle daha kolaydır.
+ */
+function toMobileFacebookUrl(url: string): string {
+  return url.replace(/https?:\/\/(www\.)?facebook\.com/, "https://m.facebook.com");
+}
+
+/**
  * yt-dlp binary'sini child_process ile çağırarak video metadatasını ve sesli formatları çözer.
  * H.264 (AVC1) codec'lerini önceliklendirir, HEVC/H.265 durumlarında H.264'e transcode eder.
  * 
@@ -371,23 +380,27 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
 
     let stdoutData = "";
     try {
-      const { stdout } = await execFileAsync(
-        "yt-dlp",
-        [
-          "-j",
-          "--no-warnings",
-          "--no-playlist",
-          "--skip-download",
-          "--user-agent", userAgent,
-          "--referer", referer,
-          ...extraArgs,
-          videoUrl,
-        ],
-        {
-          maxBuffer: 50 * 1024 * 1024,
-          timeout: 30000,
-        }
-      );
+      const ytdlpArgs: string[] = [
+        "-j",
+        "--no-warnings",
+        "--no-playlist",
+        "--skip-download",
+        "--user-agent", userAgent,
+        "--referer", referer,
+        ...extraArgs,
+      ];
+
+      // Facebook için curl-cffi browser impersonation (bot tespitini bypass eder)
+      if (platform === "facebook") {
+        ytdlpArgs.push("--impersonate", "chrome");
+      }
+
+      ytdlpArgs.push(videoUrl);
+
+      const { stdout } = await execFileAsync("yt-dlp", ytdlpArgs, {
+        maxBuffer: 50 * 1024 * 1024,
+        timeout: 30000,
+      });
       stdoutData = stdout;
     } catch (firstErr: any) {
       const firstErrMsg = extractCleanErrorMessage(firstErr).toLowerCase();
@@ -417,10 +430,13 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         );
         stdoutData = stdout;
       } else if (platform === "facebook" && (firstErrMsg.includes("cannot parse data") || firstErrMsg.includes("unsupported url") || firstErrMsg.includes("parse"))) {
-        // Facebook parse hatası: çerezleri zorla yenile ve 1 kez tekrar dene
-        console.log(`[ytdlp service] Facebook parse hatası, misafir çerezi zorla yenilenip tekrar deneniyor...`);
+        // Facebook parse hatası: Mobil URL + çerezleri zorla yenile + impersonate ile tekrar dene
+        console.log(`[ytdlp service] Facebook parse hatası, mobil URL + çerez yenileme ile tekrar deneniyor...`);
         await ensureFacebookGuestCookies(true); // forceRefresh = true
         extraArgs = buildYtdlpExtraArgs(platform);
+
+        const mobileUrl = toMobileFacebookUrl(videoUrl);
+        console.log(`[ytdlp service] Mobil Facebook URL deneniyor: ${mobileUrl}`);
 
         const { stdout } = await execFileAsync(
           "yt-dlp",
@@ -429,14 +445,15 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
             "--no-warnings",
             "--no-playlist",
             "--skip-download",
+            "--impersonate", "chrome",  // curl-cffi: Facebook bot tespitini bypass
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "--referer", "https://www.facebook.com/",
             ...extraArgs,
-            videoUrl,
+            mobileUrl,
           ],
           {
             maxBuffer: 50 * 1024 * 1024,
-            timeout: 30000,
+            timeout: 35000,
           }
         );
         stdoutData = stdout;
