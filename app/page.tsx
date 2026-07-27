@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { UrlInput } from "@/components/UrlInput";
 import { VideoPreviewCard, VideoMetaData } from "@/components/VideoPreviewCard";
 import { AdSlot } from "@/components/AdSlot";
+import { TrustBadges } from "@/components/TrustBadges";
+import { AboutSection } from "@/components/AboutSection";
 import { Instagram, Youtube, Facebook, Video, ShieldCheck, Zap, Sparkles, AlertCircle } from "lucide-react";
 
 /**
@@ -111,8 +113,13 @@ export default function HomePage() {
           Kayıt olmadan, karmaşık adımlar ve sinir bozucu reklamlar olmadan videolarınızı saniyeler içinde cihazınıza kaydedin.
         </p>
 
+        {/* Trust Badges (Page UI Leading Pill Deseni) - Hero Altında, Input Öncesinde */}
+        <div className="pt-2">
+          <TrustBadges />
+        </div>
+
         {/* Büyük URL Input Bileşeni */}
-        <div className="pt-4">
+        <div className="pt-2">
           <UrlInput onResolve={handleResolveUrl} isLoading={isLoading} />
         </div>
 
@@ -183,6 +190,9 @@ export default function HomePage() {
             <p className="text-xs text-slate-400">Sunucularımızda hiçbir videonuz saklanmaz, verileriniz tamamen güvendedir.</p>
           </div>
         </div>
+
+        {/* About Section (Page UI About Section Deseni) - Alt Kısımda */}
+        <AboutSection />
 
       </div>
     </div>
