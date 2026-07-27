@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Heart, Terminal, MessageSquare, ArrowRight, ShieldCheck, Code2 } from "lucide-react";
+import { Heart, Terminal, MessageSquare, ArrowRight, ShieldCheck, Globe } from "lucide-react";
 
 /**
  * AboutSection Bileşeni
@@ -42,11 +42,11 @@ export function AboutSection() {
 
         <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800/60 space-y-2">
           <div className="flex items-center gap-2 text-teal-400 font-semibold text-xs">
-            <Code2 className="w-4 h-4" />
-            <span>Açık Kaynak Gücü</span>
+            <Globe className="w-4 h-4" />
+            <span>Sana Özel Değil, Herkese Açık</span>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Altyapımızda topluluk tarafından sürekli güncellenen güvenilir açık kaynaklı araçlar (yt-dlp ve FFmpeg) kullanıyoruz.
+            Verilerinizi kimseyle paylaşmayız. Herkese eşit ve tam şeffaflıkla hizmet veririz; gizli bir algoritma veya öncelikli VIP sırası yoktur.
           </p>
         </div>
       </div>

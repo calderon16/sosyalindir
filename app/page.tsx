@@ -97,7 +97,7 @@ export default function HomePage() {
         {/* Üst Rozet */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-md">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Reklamsız & Yüksek Hızlı Video İndirici</span>
+          <span>Sadece Yapıştır, Gerisini Biz Halledelim</span>
         </div>
 
         {/* Ana Başlık */}
