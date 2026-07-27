@@ -390,10 +390,10 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
         ...extraArgs,
       ];
 
-      // Facebook için curl-cffi browser impersonation (bot tespitini bypass eder)
-      if (platform === "facebook") {
-        ytdlpArgs.push("--impersonate", "chrome");
-      }
+      // Facebook için özel argümanlar
+      // if (platform === "facebook") {
+      //   ytdlpArgs.push("--impersonate", "chrome");
+      // }
 
       ytdlpArgs.push(videoUrl);
 
@@ -445,7 +445,6 @@ export async function resolveVideoWithYtDlp(videoUrl: string, platform: string):
             "--no-warnings",
             "--no-playlist",
             "--skip-download",
-            "--impersonate", "chrome",  // curl-cffi: Facebook bot tespitini bypass
             "--user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
             "--referer", "https://www.facebook.com/",
             ...extraArgs,
