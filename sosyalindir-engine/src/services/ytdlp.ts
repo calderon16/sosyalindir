@@ -186,11 +186,16 @@ function buildYtdlpExtraArgs(platform: string): string[] {
   if (platform === "facebook") {
     // Facebook: Manuel FACEBOOK_COOKIES env değişkeni varsa kullan, yoksa otomatik çekilen fb_cookies.txt
     if (process.env.FACEBOOK_COOKIES) {
-      try {
-        const content = Buffer.from(process.env.FACEBOOK_COOKIES, "base64").toString("utf-8");
-        fs.writeFileSync(FB_COOKIES_PATH, content, "utf-8");
-      } catch {
-        fs.writeFileSync(FB_COOKIES_PATH, process.env.FACEBOOK_COOKIES, "utf-8");
+      const fbEnv = process.env.FACEBOOK_COOKIES.trim();
+      if (fbEnv.startsWith("# Netscape HTTP Cookie File") || fbEnv.startsWith(".facebook.com")) {
+        fs.writeFileSync(FB_COOKIES_PATH, fbEnv, "utf-8");
+      } else {
+        try {
+          const content = Buffer.from(fbEnv, "base64").toString("utf-8");
+          fs.writeFileSync(FB_COOKIES_PATH, content, "utf-8");
+        } catch {
+          fs.writeFileSync(FB_COOKIES_PATH, fbEnv, "utf-8");
+        }
       }
     }
     if (fs.existsSync(FB_COOKIES_PATH)) {
@@ -205,11 +210,16 @@ function buildYtdlpExtraArgs(platform: string): string[] {
   } else {
     // Instagram ve diğerleri: Mevcut INSTAGRAM_COOKIES veya otomatik çekilen cookies.txt
     if (process.env.INSTAGRAM_COOKIES) {
-      try {
-        const content = Buffer.from(process.env.INSTAGRAM_COOKIES, "base64").toString("utf-8");
-        fs.writeFileSync(COOKIES_PATH, content, "utf-8");
-      } catch {
-        fs.writeFileSync(COOKIES_PATH, process.env.INSTAGRAM_COOKIES, "utf-8");
+      const igEnv = process.env.INSTAGRAM_COOKIES.trim();
+      if (igEnv.startsWith("# Netscape HTTP Cookie File") || igEnv.startsWith(".instagram.com")) {
+        fs.writeFileSync(COOKIES_PATH, igEnv, "utf-8");
+      } else {
+        try {
+          const content = Buffer.from(igEnv, "base64").toString("utf-8");
+          fs.writeFileSync(COOKIES_PATH, content, "utf-8");
+        } catch {
+          fs.writeFileSync(COOKIES_PATH, igEnv, "utf-8");
+        }
       }
     }
     if (fs.existsSync(COOKIES_PATH)) {
