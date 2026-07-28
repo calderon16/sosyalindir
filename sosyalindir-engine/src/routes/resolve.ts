@@ -1,5 +1,6 @@
 import { Request, Response, Router } from "express";
 import { resolveVideoWithYtDlp } from "../services/ytdlp.js";
+import { resolveYouTubeWithSaverApi } from "../services/saverApiService.js";
 
 const router = Router();
 
@@ -38,11 +39,8 @@ function validateAndDetectPlatform(urlStr: string): { isValid: boolean; platform
       if (hostname === domain || hostname.endsWith("." + domain)) {
         // YouTube durumunda Shorts veya youtu.be kontrolü
         if (platform === "youtube") {
-          const pathname = parsed.pathname.toLowerCase();
-          if (hostname === "youtu.be" || pathname.includes("/shorts")) {
-            return { isValid: true, platform: "youtube" };
-          }
-          return { isValid: false, platform: "unknown" };
+          // SaverAPI entegrasyonu sonrası: tüm YouTube URL'leri (Shorts, normal video, youtu.be) desteklenir
+          return { isValid: true, platform: "youtube" };
         }
         return { isValid: true, platform };
       }
@@ -69,13 +67,22 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
   if (!isValid) {
     res.status(400).json({
-      error: "Desteklenmeyen platform. Yalnızca Instagram, TikTok, YouTube Shorts ve Facebook Reels bağlantıları kabul edilir.",
+      error: "Desteklenmeyen platform. Yalnızca Instagram, TikTok, YouTube ve Facebook Reels bağlantıları kabul edilir.",
     });
     return;
   }
 
   try {
-    const result = await resolveVideoWithYtDlp(cleanUrl, platform);
+    let result;
+
+    if (platform === "youtube") {
+      // YouTube: SaverAPI (saverapi.net) üzerinden çözümlenir
+      result = await resolveYouTubeWithSaverApi(cleanUrl);
+    } else {
+      // Instagram, TikTok, Facebook: yt-dlp motoru — değişmeden devam eder
+      result = await resolveVideoWithYtDlp(cleanUrl, platform);
+    }
+
     res.json({
       status: "success",
       data: result,

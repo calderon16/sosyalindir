@@ -89,9 +89,8 @@ export default async function LocaleLayout({
     <html lang={locale} className="dark">
       <head>
         {adsenseClientId && (
-          <Script
-            id="google-adsense"
-            strategy="afterInteractive"
+          <script
+            async
             src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
             crossOrigin="anonymous"
           />

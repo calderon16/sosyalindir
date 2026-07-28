@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { detectPlatform, PlatformType } from "@/lib/platformDetect";
 import { PlatformBadge } from "@/components/PlatformBadge";
-import { Download, Loader2, Clipboard, X, ArrowRight, AlertCircle, Sparkles } from "lucide-react";
+import { Download, Loader2, Clipboard, X, ArrowRight, Sparkles } from "lucide-react";
 
 interface UrlInputProps {
   onResolve?: (url: string) => void;
@@ -50,14 +50,14 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = cleanUrlInput(url);
-    if (!cleaned || isLoading || detectedPlatform === "youtube") return;
+    if (!cleaned || isLoading) return;
     
     if (onResolve) {
       onResolve(cleaned);
     }
   };
 
-  const isYouTube = detectedPlatform === "youtube";
+
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto space-y-4">
@@ -72,7 +72,7 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
               type="text"
               value={url}
               onChange={handleInputChange}
-              placeholder="Instagram, TikTok veya Facebook Reels linkini yapıştırın..."
+              placeholder="Instagram, TikTok, YouTube veya Facebook Reels linkini yapıştırın..."
               className="w-full bg-transparent text-white placeholder-slate-500 text-sm sm:text-base outline-none pr-8 disabled:opacity-50"
               disabled={isLoading}
             />
@@ -107,7 +107,7 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
           {/* Sağ: İndir Butonu & Yüklenme Durumu */}
           <button
             type="submit"
-            disabled={!cleanUrlInput(url) || isLoading || isYouTube}
+            disabled={!cleanUrlInput(url) || isLoading}
             className="w-full sm:w-auto px-7 py-3.5 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 active:scale-95 disabled:opacity-60 disabled:pointer-events-none transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 min-w-[170px]"
           >
             {isLoading ? (
@@ -145,19 +145,6 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
           <span className="text-slate-500 hidden sm:inline">
             Otomatik bağlantı doğrulaması aktif
           </span>
-        </div>
-      )}
-
-      {/* YouTube Shorts Geçici Uyarı Banner'ı */}
-      {isYouTube && (
-        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm animate-fadeIn">
-          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <span className="font-semibold block mb-0.5">YouTube Shorts Desteği Yakında 🚧</span>
-            <span>
-              YouTube bot koruması nedeniyle Shorts indirme özelliği şu anda geliştirme aşamasındadır. Şimdilik <strong>Instagram Reels</strong>, <strong>TikTok</strong> ve <strong>Facebook Reels</strong> videolarını sorunsuz indirebilirsiniz.
-            </span>
-          </div>
         </div>
       )}
     </form>

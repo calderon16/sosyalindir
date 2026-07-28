@@ -26,8 +26,8 @@ const PATTERNS: Record<Exclude<PlatformType, "unknown">, RegExp> = {
   // TikTok: tiktok.com/@user/video/..., vm.tiktok.com/..., vt.tiktok.com/..., tiktok.com/t/..., m.tiktok.com/v/...
   tiktok: /^(https?:\/\/)?(www\.|vm\.|vt\.|t\.|m\.)?tiktok\.com\/(@[\w.-]+\/video\/\d+|t\/[\w.-]+|v\/\d+|[\w.-]+)/i,
   
-  // YouTube Shorts: youtube.com/shorts/..., m.youtube.com/shorts/..., youtu.be/...
-  youtube: /^(https?:\/\/)?(www\.|m\.)?(youtube\.com\/shorts\/[^\s/?#]+|youtu\.be\/[^\s/?#]+)/i,
+  // YouTube: youtube.com/watch?v=..., youtube.com/shorts/..., youtu.be/..., m.youtube.com
+  youtube: /^(https?:\/\/)?(www\.|m\.)?(youtube\.com\/(watch|shorts\/|embed\/|v\/|live\/)|youtu\.be\/)[^\s]*/i,
   
   // Facebook Reels & Video: facebook.com/reel/..., facebook.com/watch/..., fb.watch/..., facebook.com/share/r/...
   facebook: /^(https?:\/\/)?(www\.|web\.|m\.|fb\.)?(facebook\.com\/(reel|reels|watch|share\/r|.+?\/videos|\?v=)|fb\.watch\/)/i,
@@ -88,7 +88,7 @@ export const PLATFORM_INFO: Record<PlatformType, PlatformConfig> = {
   },
   youtube: {
     id: "youtube",
-    name: "YouTube Shorts",
+    name: "YouTube",
     colorClass: "from-red-600 to-red-700",
     badgeBg: "bg-red-500/10 border-red-500/30",
     badgeText: "text-red-600 dark:text-red-400",

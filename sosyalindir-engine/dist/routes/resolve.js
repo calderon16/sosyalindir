@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const ytdlp_js_1 = require("../services/ytdlp.js");
+const saverApiService_js_1 = require("../services/saverApiService.js");
 const router = (0, express_1.Router)();
 // SSRF Korumalı — İzin Verilen Tam Alan Adları ve Alt Alan Adları Listesi
 const ALLOWED_PLATFORM_DOMAINS = {
@@ -35,11 +36,8 @@ function validateAndDetectPlatform(urlStr) {
             if (hostname === domain || hostname.endsWith("." + domain)) {
                 // YouTube durumunda Shorts veya youtu.be kontrolü
                 if (platform === "youtube") {
-                    const pathname = parsed.pathname.toLowerCase();
-                    if (hostname === "youtu.be" || pathname.includes("/shorts")) {
-                        return { isValid: true, platform: "youtube" };
-                    }
-                    return { isValid: false, platform: "unknown" };
+                    // SaverAPI entegrasyonu sonrası: tüm YouTube URL'leri (Shorts, normal video, youtu.be) desteklenir
+                    return { isValid: true, platform: "youtube" };
                 }
                 return { isValid: true, platform };
             }
@@ -61,12 +59,20 @@ router.get("/", async (req, res) => {
     const { isValid, platform } = validateAndDetectPlatform(cleanUrl);
     if (!isValid) {
         res.status(400).json({
-            error: "Desteklenmeyen platform. Yalnızca Instagram, TikTok, YouTube Shorts ve Facebook Reels bağlantıları kabul edilir.",
+            error: "Desteklenmeyen platform. Yalnızca Instagram, TikTok, YouTube ve Facebook Reels bağlantıları kabul edilir.",
         });
         return;
     }
     try {
-        const result = await (0, ytdlp_js_1.resolveVideoWithYtDlp)(cleanUrl, platform);
+        let result;
+        if (platform === "youtube") {
+            // YouTube: SaverAPI (saverapi.net) üzerinden çözümlenir
+            result = await (0, saverApiService_js_1.resolveYouTubeWithSaverApi)(cleanUrl);
+        }
+        else {
+            // Instagram, TikTok, Facebook: yt-dlp motoru — değişmeden devam eder
+            result = await (0, ytdlp_js_1.resolveVideoWithYtDlp)(cleanUrl, platform);
+        }
         res.json({
             status: "success",
             data: result,
