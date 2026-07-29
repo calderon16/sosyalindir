@@ -63,8 +63,10 @@ export function PlatformLandingClient({
       {/* URL Girdi Alanı */}
       <UrlInput onResolve={handleResolveUrl} isLoading={isLoading} />
 
-      {/* Reklam Birimi 1 */}
-      <AdSlot slotId="1000000003" className="my-4" />
+      {/* Reklam Birimi 1 (Yalnızca yüklenme veya hata durumları yoksa render edilir) */}
+      {!isLoading && !errorMessage && (
+        <AdSlot slotId="1000000003" className="my-4" />
+      )}
 
       {/* Hata Mesajı */}
       {errorMessage && (
@@ -75,7 +77,7 @@ export function PlatformLandingClient({
       )}
 
       {/* Çözümlenen Sonuç Kartı */}
-      {resultData && (
+      {resultData && !isLoading && !errorMessage && (
         <div className="space-y-6">
           <VideoPreviewCard data={resultData} onReset={handleReset} />
           {/* Reklam Birimi 2 */}

@@ -133,8 +133,10 @@ export default function HomePage() {
           <UrlInput onResolve={handleResolveUrl} isLoading={isLoading} />
         </div>
 
-        {/* 1. Reklam Birimi (URL Input Altında) */}
-        <AdSlot slotId="1000000001" className="my-6" />
+        {/* 1. Reklam Birimi (URL Input Altında — Yalnızca yüklenme ve hata olmadığında görünür) */}
+        {!isLoading && !errorMessage && (
+          <AdSlot slotId="1000000001" className="my-6" />
+        )}
 
         {/* Desteklenen Platformlar Alt Yazısı */}
         <div className="pt-2 flex flex-col items-center gap-3">
@@ -171,11 +173,11 @@ export default function HomePage() {
         )}
 
         {/* Çözümlenen Video Sonuç Kartı */}
-        {resultData && (
+        {resultData && !isLoading && !errorMessage && (
           <div className="space-y-6">
             <VideoPreviewCard data={resultData} onReset={handleReset} />
             
-            {/* 2. Reklam Birimi (Video Preview Kartının Altında) */}
+            {/* 2. Reklam Birimi (Gerçek İndirme ve Video Önizleme Kartının Altında) */}
             <AdSlot slotId="1000000002" className="mt-6" />
           </div>
         )}
