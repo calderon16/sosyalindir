@@ -23,8 +23,16 @@ async function handleResolve(url: string) {
   if (platform === "unknown") {
     return NextResponse.json(
       {
-        error: "Bu bağlantı şu anda desteklenmiyor. Lütfen geçerli bir Instagram, TikTok, YouTube veya Facebook Reels bağlantısı girin.",
+        error: "Bu bağlantı şu anda desteklenmiyor. Lütfen geçerli bir Instagram, TikTok veya Facebook Reels bağlantısı girin.",
       },
+      { status: 400 }
+    );
+  }
+
+  // YouTube geçici olarak "yakında" durumuna alındı (YouTube bot koruması & IP kısıtlaması nedeniyle)
+  if (platform === "youtube") {
+    return NextResponse.json(
+      { error: "YouTube bot kısıtlaması nedeniyle YouTube indirme özelliği şu anda bakım ve güncelleme aşamasındadır. Şimdilik Instagram, TikTok ve Facebook videolarını indirebilirsiniz." },
       { status: 400 }
     );
   }

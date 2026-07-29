@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const ytdlp_js_1 = require("../services/ytdlp.js");
-const saverApiService_js_1 = require("../services/saverApiService.js");
 const router = (0, express_1.Router)();
 // SSRF Korumalı — İzin Verilen Tam Alan Adları ve Alt Alan Adları Listesi
 const ALLOWED_PLATFORM_DOMAINS = {
@@ -66,8 +65,10 @@ router.get("/", async (req, res) => {
     try {
         let result;
         if (platform === "youtube") {
-            // YouTube: SaverAPI (saverapi.net) üzerinden çözümlenir
-            result = await (0, saverApiService_js_1.resolveYouTubeWithSaverApi)(cleanUrl);
+            res.status(400).json({
+                error: "YouTube koruma güncellemeleri nedeniyle YouTube indirme özelliği geçici olarak bakım aşamasındadır. Şimdilik Instagram, TikTok ve Facebook Reels içeriklerini indirebilirsiniz.",
+            });
+            return;
         }
         else {
             // Instagram, TikTok, Facebook: yt-dlp motoru — değişmeden devam eder

@@ -76,8 +76,10 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     let result;
 
     if (platform === "youtube") {
-      // YouTube: SaverAPI (saverapi.net) üzerinden çözümlenir
-      result = await resolveYouTubeWithSaverApi(cleanUrl);
+      res.status(400).json({
+        error: "YouTube koruma güncellemeleri nedeniyle YouTube indirme özelliği geçici olarak bakım aşamasındadır. Şimdilik Instagram, TikTok ve Facebook Reels içeriklerini indirebilirsiniz.",
+      });
+      return;
     } else {
       // Instagram, TikTok, Facebook: yt-dlp motoru — değişmeden devam eder
       result = await resolveVideoWithYtDlp(cleanUrl, platform);

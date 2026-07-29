@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { detectPlatform, PlatformType } from "@/lib/platformDetect";
 import { PlatformBadge } from "@/components/PlatformBadge";
-import { Download, Loader2, Clipboard, X, ArrowRight, Sparkles } from "lucide-react";
+import { Download, Loader2, Clipboard, X, ArrowRight, Sparkles, AlertCircle } from "lucide-react";
 
 interface UrlInputProps {
   onResolve?: (url: string) => void;
@@ -47,10 +47,12 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
     }
   };
 
+  const isYouTube = detectedPlatform === "youtube";
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = cleanUrlInput(url);
-    if (!cleaned || isLoading) return;
+    if (!cleaned || isLoading || isYouTube) return;
     
     if (onResolve) {
       onResolve(cleaned);
@@ -107,7 +109,7 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
           {/* Sağ: İndir Butonu & Yüklenme Durumu */}
           <button
             type="submit"
-            disabled={!cleanUrlInput(url) || isLoading}
+            disabled={!cleanUrlInput(url) || isLoading || isYouTube}
             className="w-full sm:w-auto px-7 py-3.5 rounded-xl font-bold text-sm text-slate-950 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 active:scale-95 disabled:opacity-60 disabled:pointer-events-none transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 min-w-[170px]"
           >
             {isLoading ? (
@@ -145,6 +147,19 @@ export function UrlInput({ onResolve, isLoading = false }: UrlInputProps) {
           <span className="text-slate-500 hidden sm:inline">
             Otomatik bağlantı doğrulaması aktif
           </span>
+        </div>
+      )}
+
+      {/* YouTube Shorts Geçici Uyarı Banner'ı */}
+      {isYouTube && (
+        <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs sm:text-sm animate-fadeIn">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-semibold block mb-0.5">YouTube Desteği Bakım Aşamasında 🚧</span>
+            <span>
+              YouTube sunucularının güncel bot kısıtlamaları nedeniyle YouTube indirme servisi şu anda güncelleme ve bakım aşamasındadır. Şimdilik <strong>Instagram Reels</strong>, <strong>TikTok</strong> ve <strong>Facebook Reels</strong> videolarını sorunsuz indirebilirsiniz.
+            </span>
+          </div>
         </div>
       )}
     </form>
