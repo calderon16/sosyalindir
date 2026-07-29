@@ -23,16 +23,8 @@ async function handleResolve(url: string) {
   if (platform === "unknown") {
     return NextResponse.json(
       {
-        error: "Bu bağlantı şu anda desteklenmiyor. Lütfen geçerli bir Instagram, TikTok veya Facebook Reels bağlantısı girin.",
+        error: "Bu bağlantı şu anda desteklenmiyor. Lütfen geçerli bir Instagram, TikTok, YouTube veya Facebook Reels bağlantısı girin.",
       },
-      { status: 400 }
-    );
-  }
-
-  // YouTube Shorts geçici olarak "yakında" mesajıyla engelleniyor (bot koruması sebebiyle)
-  if (platform === "youtube") {
-    return NextResponse.json(
-      { error: "YouTube Shorts desteği yakında ekleniyor." },
       { status: 400 }
     );
   }
