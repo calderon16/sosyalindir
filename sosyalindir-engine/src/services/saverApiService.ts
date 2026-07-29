@@ -1,257 +1,326 @@
+import { execFile } from "child_process";
+import { promisify } from "util";
 import https from "https";
 import http from "http";
 import { ResolvedVideoInfo, VideoFormatOption } from "./ytdlp.js";
 
+const execFileAsync = promisify(execFile);
+
 /**
- * SaverAPI (saverapi.net) üzerinden YouTube video bilgisi alır.
- * API Key ortam değişkeninden okunur: SAVERAPI_KEY
+ * SaverAPI + yt-dlp Hibrit YouTube Çözümleyici
  *
- * Kullanılan endpoint: GET https://saverapi.net/api/youtube-info?url=<VIDEO_URL>&apiKey=<KEY>
- * Maliyet: 1 kredi / istek
+ * Strateji:
+ *   1. yt-dlp -j ile YouTube video metadata + format listesini al (dosya indirmeden)
+ *   2. En iyi video+ses stream URL'sini seç (H.264, sesli, tercihen 720p)
+ *   3. SaverAPI /api/youtube-info-v2 ile daha zengin metadata overlay yap (isteğe bağlı)
  *
- * youtube-info-v2 (2 kredi) daha zengin format listesi sunar; kredi tasarrufu için
- * önce youtube-info (1 kredi) denenir, başarısız olursa hata fırlatılır.
+ * Bu yaklaşım:
+ *   - Railway'de ffmpeg merge gerektirmiyor (dosya indirme yok)
+ *   - YouTube CDN URL'si direkt /download proxy üzerinden stream edilir
+ *   - SaverAPI metadata ile başlık/thumbnail zenginleştirilir
  */
 
-// ─── SaverAPI yanıt tipleri ─────────────────────────────────────────────────
+// ─── SaverAPI youtube-info-v2 yanıt tipi ──────────────────────────────────
 
-interface SaverApiYouTubeFormat {
-  quality?: string;
-  resolution?: string;
-  url?: string;
-  download_url?: string;
-  ext?: string;
-  type?: string;
-  size?: number;
-  filesize?: number;
-  hasAudio?: boolean;
-  vcodec?: string;
-}
-
-interface SaverApiYouTubeInfoResponse {
-  // youtube-info (v1) alanları
-  title?: string;
-  thumbnail?: string;
-  thumbnail_url?: string;
-  duration?: number;
-  author?: string;
-  channel?: string;
-  uploader?: string;
-  id?: string;
+interface SaverApiV2Response {
+  ok?: boolean;
   video_id?: string;
-  formats?: SaverApiYouTubeFormat[];
-  download_url?: string;
-  url?: string;
-
-  // Ortak hata alanları
-  error?: string;
+  title?: string;
+  author?: string;
+  thumbnail?: string;
+  duration?: number;
+  thumbnails?: { low?: string; max?: string };
+  formats?: Array<{ type: string; format: string; filesize?: number }>;
+  error?: boolean | string;
   message?: string;
-  status?: number | string;
-  success?: boolean;
 }
 
-// ─── Yardımcı: basit HTTPS GET ──────────────────────────────────────────────
+// ─── Yardımcı: HTTPS GET ─────────────────────────────────────────────────────
 
-function httpsGet(url: string): Promise<string> {
+function httpsGet(url: string, headers: Record<string, string> = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith("https") ? https : http;
-    const req = protocol.get(
-      url,
+    const parsedUrl = new URL(url);
+
+    const req = (protocol as typeof https).request(
       {
+        hostname: parsedUrl.hostname,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: "GET",
         headers: {
           "User-Agent": "SosyalIndir-Engine/1.0",
           "Accept": "application/json",
+          ...headers,
         },
-        timeout: 20000,
+        timeout: 15000,
       },
       (res) => {
         let data = "";
         res.on("data", (chunk: Buffer) => (data += chunk.toString()));
-        res.on("end", () => resolve(data));
+        res.on("end", () => {
+          if (res.statusCode && res.statusCode >= 400) {
+            reject(new Error(`HTTP ${res.statusCode}`));
+          } else {
+            resolve(data);
+          }
+        });
       }
     );
     req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("SaverAPI isteği zaman aşımına uğradı (20s)."));
-    });
+    req.on("timeout", () => { req.destroy(); reject(new Error("Timeout")); });
+    req.end();
   });
 }
 
-// ─── Ana fonksiyon ─────────────────────────────────────────────────────────
+// ─── SaverAPI metadata (isteğe bağlı) ─────────────────────────────────────
+
+async function fetchSaverApiMeta(
+  videoUrl: string,
+  apiKey: string
+): Promise<{ title?: string; author?: string; thumbnail?: string; duration?: number } | null> {
+  try {
+    const authHeaders = {
+      "Authorization": `Bearer ${apiKey}`,
+      "x-api-key": apiKey,
+    };
+    const url = `https://saverapi.net/api/youtube-info-v2?url=${encodeURIComponent(videoUrl)}`;
+    const raw = await httpsGet(url, authHeaders);
+    const parsed: SaverApiV2Response = JSON.parse(raw);
+
+    if (parsed.ok && parsed.title) {
+      const thumbnail =
+        parsed.thumbnails?.max ||
+        parsed.thumbnails?.low ||
+        parsed.thumbnail ||
+        (parsed.video_id ? `https://i.ytimg.com/vi/${parsed.video_id}/maxresdefault.jpg` : "");
+
+      console.log(`[SaverAPI] Metadata alındı: "${parsed.title}" (${parsed.duration}s)`);
+      return {
+        title: parsed.title,
+        author: parsed.author,
+        thumbnail,
+        duration: parsed.duration,
+      };
+    }
+  } catch (e) {
+    console.warn(`[SaverAPI] Metadata overlay başarısız (önemsiz): ${(e as Error).message?.substring(0, 60)}`);
+  }
+  return null;
+}
+
+// ─── yt-dlp ile YouTube JSON metadata al ─────────────────────────────────────
+
+interface YtDlpFormat {
+  format_id: string;
+  ext: string;
+  url: string;
+  height?: number;
+  width?: number;
+  vcodec?: string;
+  acodec?: string;
+  filesize?: number;
+  filesize_approx?: number;
+  tbr?: number;
+  format_note?: string;
+  dynamic_range?: string;
+}
+
+interface YtDlpJson {
+  id: string;
+  title?: string;
+  uploader?: string;
+  channel?: string;
+  uploader_id?: string;
+  thumbnail?: string;
+  thumbnails?: Array<{ url: string; width?: number; height?: number }>;
+  duration?: number;
+  formats?: YtDlpFormat[];
+  // Tekil format (en iyi seçim) da gelebilir
+  url?: string;
+  ext?: string;
+  vcodec?: string;
+  acodec?: string;
+  format_id?: string;
+  height?: number;
+  filesize?: number;
+  filesize_approx?: number;
+}
+
+function selectBestFormats(formats: YtDlpFormat[]): VideoFormatOption[] {
+  // Hedef: Ses + Video birleşik stream URL içeren mp4/H.264 formatlar
+  // YouTube CDN'de `acodec !== 'none'` olan formatlar ses içeriyor demektir
+  const candidates = formats.filter(
+    (f) =>
+      f.url &&
+      f.acodec &&
+      f.acodec !== "none" &&
+      f.vcodec &&
+      f.vcodec !== "none" &&
+      !f.url.includes("manifest") &&
+      f.ext !== "webm"
+  );
+
+  // Çözünürlüğe göre sırala (büyükten küçüğe)
+  candidates.sort((a, b) => (b.height || 0) - (a.height || 0));
+
+  // En fazla 3 format sun (1080p, 720p, 360p gibi)
+  const selected = candidates.slice(0, 3);
+
+  // Eğer birleşik format yoksa ses+video ayrı streamler var demektir (DASH)
+  // Bu durumda tek formatlı birleşik listeyi seç
+  if (selected.length === 0) {
+    // Sadece video (sesli değil) olanları da deneyelim
+    const videoOnly = formats.filter(
+      (f) => f.url && f.vcodec && f.vcodec !== "none" && !f.url.includes("manifest") && f.ext !== "webm"
+    );
+    videoOnly.sort((a, b) => (b.height || 0) - (a.height || 0));
+    const best = videoOnly.slice(0, 1);
+
+    return best.map((f) => ({
+      formatId: f.format_id,
+      ext: f.ext || "mp4",
+      resolution: f.height ? `${f.height}p` : "HD",
+      url: f.url,
+      filesize: f.filesize || f.filesize_approx,
+      isWatermarkless: true,
+      hasAudio: f.acodec !== "none",
+      vcodec: f.vcodec,
+    }));
+  }
+
+  return selected.map((f) => ({
+    formatId: f.format_id,
+    ext: f.ext || "mp4",
+    resolution: f.height ? `${f.height}p` : (f.format_note || "HD"),
+    url: f.url,
+    filesize: f.filesize || f.filesize_approx,
+    isWatermarkless: true,
+    hasAudio: true,
+    vcodec: f.vcodec,
+  }));
+}
+
+// ─── Ana dışa aktarılan fonksiyon ────────────────────────────────────────────
 
 /**
- * SaverAPI'den YouTube video bilgisi çeker ve projenin beklediği
- * ResolvedVideoInfo formatına dönüştürür.
- *
- * @param videoUrl İndirilecek YouTube URL'si (Shorts dahil)
- * @returns ResolvedVideoInfo — projenin geri kalanı ile tamamen uyumlu
+ * YouTube video çözümleyici: yt-dlp -j ile stream URL al + SaverAPI metadata overlay.
+ * Dosya indirme yapılmaz; YouTube CDN URL'si /download proxy üzerinden servis edilir.
  */
 export async function resolveYouTubeWithSaverApi(
   videoUrl: string
 ): Promise<ResolvedVideoInfo> {
-  const apiKey = process.env.SAVERAPI_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "SAVERAPI_KEY ortam değişkeni tanımlı değil. Lütfen Railway panelinde bu değişkeni ekleyin."
-    );
-  }
-
-  console.log(`[SaverAPI] YouTube resolve başlatılıyor: ${videoUrl}`);
   const startTime = Date.now();
+  console.log(`[YouTube Resolver] Başlatılıyor: ${videoUrl}`);
 
-  // ── 1. Önce youtube-info (1 kredi) dene ──────────────────────────────────
-  const infoUrl =
-    `https://saverapi.net/api/youtube-info` +
-    `?url=${encodeURIComponent(videoUrl)}&apiKey=${encodeURIComponent(apiKey)}`;
-
-  let rawBody: string;
+  // ── 1. yt-dlp -j ile JSON metadata + format URL'leri al ───────────────────
+  let ytJson: YtDlpJson;
   try {
-    rawBody = await httpsGet(infoUrl);
-  } catch (fetchErr: unknown) {
-    const msg = (fetchErr as Error).message || String(fetchErr);
-    console.error(`[SaverAPI] HTTP isteği başarısız: ${msg}`);
-    throw new Error(
-      `YouTube video bilgileri alınamadı: Sunucuya ulaşılamıyor (${msg})`
+    const { stdout } = await execFileAsync(
+      "yt-dlp",
+      [
+        "-j",
+        "--no-warnings",
+        "--no-playlist",
+        "--skip-download",
+        // Android VR client: kısıtlanmamış 360p/720p birleşik mp4 formatları verir
+        "--extractor-args", "youtube:player_client=android_vr,web",
+        "--user-agent", "com.google.android.apps.youtube.vr.oculus/1.56.21 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip",
+        videoUrl,
+      ],
+      {
+        maxBuffer: 50 * 1024 * 1024,
+        timeout: 45000,
+      }
     );
+    ytJson = JSON.parse(stdout.trim());
+  } catch (err: unknown) {
+    const msg = (err as { message?: string; stderr?: string }).stderr ||
+                (err as Error).message || "yt-dlp hatası";
+
+    // Anlamlı hata mesajlarını çıkar
+    const lowerMsg = msg.toLowerCase();
+    if (lowerMsg.includes("private")) throw new Error("Bu video gizli ya da erişime kapalı.");
+    if (lowerMsg.includes("unavailable") || lowerMsg.includes("not found"))
+      throw new Error("Video bulunamadı veya kaldırılmış olabilir.");
+    if (lowerMsg.includes("sign in") || lowerMsg.includes("login"))
+      throw new Error("Bu video giriş gerektiriyor ve indirilemez.");
+
+    throw new Error(`YouTube video bilgileri alınamadı. Lütfen birkaç dakika sonra tekrar deneyin. (${msg.substring(0, 100)})`);
   }
 
-  // ── 2. JSON parse ─────────────────────────────────────────────────────────
-  let parsed: SaverApiYouTubeInfoResponse;
-  try {
-    parsed = JSON.parse(rawBody);
-  } catch {
-    console.error(
-      `[SaverAPI] JSON parse hatası. Ham yanıt (ilk 500 char): ${rawBody.substring(0, 500)}`
-    );
-    throw new Error(
-      "YouTube API'den geçersiz yanıt alındı. Lütfen birkaç dakika sonra tekrar deneyin."
-    );
-  }
-
-  // ── 3. Hata kontrolü ─────────────────────────────────────────────────────
-  const isApiError =
-    parsed.success === false ||
-    parsed.error ||
-    (parsed.status && String(parsed.status) !== "200" && String(parsed.status) !== "ok");
-
-  if (isApiError) {
-    const errMsg = parsed.error || parsed.message || "Bilinmeyen API hatası";
-    console.error(`[SaverAPI] API hata yanıtı: ${errMsg}`);
-
-    // Kullanıcıya uygun Türkçe mesaj
-    if (errMsg.toLowerCase().includes("invalid") || errMsg.toLowerCase().includes("key")) {
-      throw new Error("SaverAPI anahtarı geçersiz veya süresi dolmuş. Lütfen yöneticiyle iletişime geçin.");
-    }
-    if (errMsg.toLowerCase().includes("credit") || errMsg.toLowerCase().includes("balance")) {
-      throw new Error("API kredi limiti aşıldı. YouTube indirme geçici olarak kullanılamıyor.");
-    }
-    if (errMsg.toLowerCase().includes("not found") || errMsg.toLowerCase().includes("unavailable")) {
-      throw new Error("Video bulunamadı veya silinmiş olabilir.");
-    }
-    if (errMsg.toLowerCase().includes("private")) {
-      throw new Error("Bu video gizli ya da erişime kapalı.");
-    }
-    throw new Error(`YouTube videosu işlenemedi: ${errMsg}`);
-  }
-
-  // ── 4. Veri çıkarma ──────────────────────────────────────────────────────
-  const title = parsed.title || "YouTube Videosu";
-  const thumbnail =
-    parsed.thumbnail || parsed.thumbnail_url || "";
-  const duration = typeof parsed.duration === "number" ? parsed.duration : 0;
+  // ── 2. Metadata çıkar ─────────────────────────────────────────────────────
+  const id = ytJson.id || "unknown";
+  const title = ytJson.title || "YouTube Videosu";
   const author =
-    parsed.author || parsed.channel || parsed.uploader || "YouTube";
-  const id = parsed.id || parsed.video_id || `yt_${Date.now()}`;
+    ytJson.uploader || ytJson.channel || ytJson.uploader_id || "YouTube";
+  const thumbnail =
+    ytJson.thumbnail ||
+    (Array.isArray(ytJson.thumbnails) && ytJson.thumbnails.length > 0
+      ? ytJson.thumbnails[ytJson.thumbnails.length - 1].url
+      : `https://i.ytimg.com/vi/${id}/hqdefault.jpg`);
+  const duration = ytJson.duration || 0;
 
-  // İndirme URL'si: formats[] dizisinden en iyi video+ses formatı seç
-  let downloadUrl = parsed.download_url || parsed.url || "";
-  let selectedExt = "mp4";
-  let selectedResolution = "HD";
+  // ── 3. Format listesinden en iyi URL'leri seç ─────────────────────────────
+  let formats: VideoFormatOption[] = [];
 
-  const formats: VideoFormatOption[] = [];
-
-  if (Array.isArray(parsed.formats) && parsed.formats.length > 0) {
-    // Önce video+ses içeren mp4 formatlarını filtrele, sonra en yükseğini al
-    const videoFormats = parsed.formats.filter(
-      (f) =>
-        (f.url || f.download_url) &&
-        (f.type !== "audio" && f.ext !== "mp3" && f.ext !== "webm")
-    );
-
-    // Çözünürlüğe göre sıralama: 1080 > 720 > 480 > 360
-    const resolutionPriority = (f: SaverApiYouTubeFormat): number => {
-      const res = (f.quality || f.resolution || "").toLowerCase();
-      if (res.includes("1080")) return 4;
-      if (res.includes("720")) return 3;
-      if (res.includes("480")) return 2;
-      if (res.includes("360")) return 1;
-      return 0;
-    };
-
-    videoFormats.sort((a, b) => resolutionPriority(b) - resolutionPriority(a));
-
-    for (const f of videoFormats) {
-      const fUrl = f.url || f.download_url || "";
-      if (!fUrl) continue;
-
-      const fExt = f.ext || "mp4";
-      const fRes = f.quality || f.resolution || "HD";
-
-      formats.push({
-        formatId: `saverapi_${fRes}`,
-        ext: fExt,
-        resolution: fRes,
-        url: fUrl,
-        filesize: f.size || f.filesize,
-        isWatermarkless: true,
-        hasAudio: f.hasAudio !== false,
-        vcodec: f.vcodec || "h264",
-      });
-    }
-
-    // En iyi formatı varsayılan olarak seç
-    if (formats.length > 0) {
-      downloadUrl = formats[0].url;
-      selectedExt = formats[0].ext;
-      selectedResolution = formats[0].resolution;
-    }
+  if (Array.isArray(ytJson.formats) && ytJson.formats.length > 0) {
+    formats = selectBestFormats(ytJson.formats);
   }
 
-  // Formats listesi hâlâ boşsa ve tek bir indirme URL'si varsa onu ekle
-  if (formats.length === 0 && downloadUrl) {
+  // Format listesi hâlâ boş ama tekil URL var (yt-dlp en iyi formatı seçti)
+  if (formats.length === 0 && ytJson.url) {
     formats.push({
-      formatId: "saverapi_default",
-      ext: selectedExt,
-      resolution: selectedResolution,
-      url: downloadUrl,
+      formatId: ytJson.format_id || "best",
+      ext: ytJson.ext || "mp4",
+      resolution: ytJson.height ? `${ytJson.height}p` : "HD",
+      url: ytJson.url,
+      filesize: ytJson.filesize || ytJson.filesize_approx,
       isWatermarkless: true,
-      hasAudio: true,
-      vcodec: "h264",
+      hasAudio: ytJson.acodec !== "none",
+      vcodec: ytJson.vcodec,
     });
   }
 
-  if (!downloadUrl) {
+  if (formats.length === 0) {
     throw new Error(
-      "YouTube video indirme linki alınamadı. Video kısıtlı veya API yanıtı eksik olabilir."
+      "YouTube video için uygun bir indirme URL'si bulunamadı. Video kısıtlı veya bölgenizde kullanılamıyor olabilir."
     );
+  }
+
+  const downloadUrl = formats[0].url;
+
+  // ── 4. SaverAPI metadata overlay (isteğe bağlı — daha zengin başlık/thumbnail) ──
+  const apiKey = process.env.SAVERAPI_KEY;
+  let finalTitle = title;
+  let finalAuthor = author;
+  let finalThumbnail = thumbnail;
+  let finalDuration = duration;
+
+  if (apiKey) {
+    const meta = await fetchSaverApiMeta(videoUrl, apiKey);
+    if (meta) {
+      finalTitle = meta.title || title;
+      finalAuthor = meta.author || author;
+      finalThumbnail = meta.thumbnail || thumbnail;
+      finalDuration = (meta.duration && meta.duration > 0) ? meta.duration : duration;
+    }
   }
 
   const elapsed = Date.now() - startTime;
   console.log(
-    `[SaverAPI] YouTube resolve tamamlandı (${elapsed}ms): ${title} — ${formats.length} format`
+    `[YouTube Resolver] Tamamlandı (${elapsed}ms): "${finalTitle}" — ${formats.length} format | ` +
+    `En iyi: ${formats[0].resolution}`
   );
 
-  // ── 5. Mevcut proje şemasına uyumlu response oluştur ─────────────────────
   return {
     id,
-    title,
-    author,
-    thumbnail,
-    duration,
+    title: finalTitle,
+    author: finalAuthor,
+    thumbnail: finalThumbnail,
+    duration: finalDuration,
     platform: "youtube",
-    downloadUrl,       // Birincil indirme URL'si (CDN direkt linki)
+    downloadUrl,
     formats,
-    // fileId YOK: YouTube için geçici dosya oluşturulmaz, CDN'den direkt servis edilir
+    // fileId YOK — YouTube CDN URL'si direkt proxy ile stream edilir
   };
 }
