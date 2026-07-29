@@ -234,8 +234,10 @@ export async function resolveYouTubeWithSaverApi(
     );
     ytJson = JSON.parse(stdout.trim());
   } catch (err: unknown) {
-    const msg = (err as { message?: string; stderr?: string }).stderr ||
-                (err as Error).message || "yt-dlp hatası";
+    const errorObj = err as { message?: string; stderr?: string };
+    const msg = errorObj.stderr || errorObj.message || "yt-dlp hatası";
+
+    console.error(`[YouTube Resolver Error]: ${msg}`);
 
     // Anlamlı hata mesajlarını çıkar
     const lowerMsg = msg.toLowerCase();
@@ -245,7 +247,7 @@ export async function resolveYouTubeWithSaverApi(
     if (lowerMsg.includes("sign in") || lowerMsg.includes("login"))
       throw new Error("Bu video giriş gerektiriyor ve indirilemez.");
 
-    throw new Error(`YouTube video bilgileri alınamadı. Lütfen birkaç dakika sonra tekrar deneyin. (${msg.substring(0, 100)})`);
+    throw new Error(`YouTube işleme hatası: ${msg.substring(0, 150)}`);
   }
 
   // ── 2. Metadata çıkar ─────────────────────────────────────────────────────
