@@ -7,6 +7,32 @@ import https from "https";
 
 const execFileAsync = promisify(execFile);
 
+class Mutex {
+  private queue: Array<() => void> = [];
+  private locked = false;
+
+  async acquire(): Promise<() => void> {
+    return new Promise(resolve => {
+      if (!this.locked) {
+        this.locked = true;
+        resolve(this.release.bind(this));
+      } else {
+        this.queue.push(() => resolve(this.release.bind(this)));
+      }
+    });
+  }
+
+  private release() {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      if (next) next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+const transcodeMutex = new Mutex();
+
 export interface VideoFormatOption {
   formatId: string;
   ext: string;
@@ -312,8 +338,11 @@ async function runFfmpegTranscode(inputPath: string, outputPath: string, duratio
   // Dinamik timeout: Video süresi * 3.5 saniye (Minimum 60sn, Maksimum 240sn / 4 dk)
   const timeoutMs = Math.min(240000, Math.max(60000, Math.ceil(duration * 3500)));
 
-  console.log(`[ffmpeg] Transcode başlatıldı (Video Süresi: ${duration}s, Timeout: ${timeoutMs / 1000}s, CRF: 26): ${inputPath} -> ${outputPath}`);
+  console.log(`[ffmpeg] Transcode için kuyruğa girildi (Sıra bekleniyor)...: ${inputPath}`);
+  const releaseLock = await transcodeMutex.acquire();
+
   try {
+    console.log(`[ffmpeg] Transcode başlatıldı (Video Süresi: ${duration}s, Timeout: ${timeoutMs / 1000}s, CRF: 28): ${inputPath} -> ${outputPath}`);
     await execFileAsync("ffmpeg", [
       "-y",
       "-loglevel", "error",
@@ -323,9 +352,10 @@ async function runFfmpegTranscode(inputPath: string, outputPath: string, duratio
       "-map", "0:a:0?",      // Açık stream seçimi: ilk ses akışı (varsa)
       "-c:v", "libx264",
       "-preset", "ultrafast",
-      "-crf", "26",           // Hızlı ve hafif kodlama (düşük CPU & bellek kullanımı)
+      "-crf", "28",           // Hızlı ve hafif kodlama (düşük CPU & bellek kullanımı)
       "-pix_fmt", "yuv420p",  // Mobil uyumluluk (Android/iOS native player)
       "-c:a", "aac",         // Ses codec'ini de AAC'ye dönüştür (mobil uyum)
+      "-strict", "experimental",
       "-b:a", "128k",
       "-movflags", "+faststart",  // moov atom'u dosya başına taşı (mobil streaming)
       outputPath
@@ -345,6 +375,8 @@ async function runFfmpegTranscode(inputPath: string, outputPath: string, duratio
     const cleanErr = extractCleanErrorMessage(err);
     console.error(`[ffmpeg] Transcode başarısız oldu: ${cleanErr}`);
     throw new Error(`FFmpeg video dönüştürme hatası: ${cleanErr}`);
+  } finally {
+    releaseLock();
   }
 }
 

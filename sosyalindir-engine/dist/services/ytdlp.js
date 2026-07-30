@@ -12,6 +12,32 @@ const fs_1 = __importDefault(require("fs"));
 const os_1 = __importDefault(require("os"));
 const https_1 = __importDefault(require("https"));
 const execFileAsync = (0, util_1.promisify)(child_process_1.execFile);
+class Mutex {
+    queue = [];
+    locked = false;
+    async acquire() {
+        return new Promise(resolve => {
+            if (!this.locked) {
+                this.locked = true;
+                resolve(this.release.bind(this));
+            }
+            else {
+                this.queue.push(() => resolve(this.release.bind(this)));
+            }
+        });
+    }
+    release() {
+        if (this.queue.length > 0) {
+            const next = this.queue.shift();
+            if (next)
+                next();
+        }
+        else {
+            this.locked = false;
+        }
+    }
+}
+const transcodeMutex = new Mutex();
 // Geçici birleştirilmiş/indirilmiş dosyaların saklanacağı dizin
 const TEMP_DIR = path_1.default.join(os_1.default.tmpdir(), "sosyalindir_temp_media");
 if (!fs_1.default.existsSync(TEMP_DIR)) {
@@ -276,8 +302,10 @@ async function runFfmpegTranscode(inputPath, outputPath, durationSec) {
     const duration = durationSec && durationSec > 0 ? durationSec : 30;
     // Dinamik timeout: Video süresi * 3.5 saniye (Minimum 60sn, Maksimum 240sn / 4 dk)
     const timeoutMs = Math.min(240000, Math.max(60000, Math.ceil(duration * 3500)));
-    console.log(`[ffmpeg] Transcode başlatıldı (Video Süresi: ${duration}s, Timeout: ${timeoutMs / 1000}s, CRF: 26): ${inputPath} -> ${outputPath}`);
+    console.log(`[ffmpeg] Transcode için kuyruğa girildi (Sıra bekleniyor)...: ${inputPath}`);
+    const releaseLock = await transcodeMutex.acquire();
     try {
+        console.log(`[ffmpeg] Transcode başlatıldı (Video Süresi: ${duration}s, Timeout: ${timeoutMs / 1000}s, CRF: 28): ${inputPath} -> ${outputPath}`);
         await execFileAsync("ffmpeg", [
             "-y",
             "-loglevel", "error",
@@ -287,7 +315,7 @@ async function runFfmpegTranscode(inputPath, outputPath, durationSec) {
             "-map", "0:a:0?", // Açık stream seçimi: ilk ses akışı (varsa)
             "-c:v", "libx264",
             "-preset", "ultrafast",
-            "-crf", "26", // Hızlı ve hafif kodlama (düşük CPU & bellek kullanımı)
+            "-crf", "28", // Hızlı ve hafif kodlama (düşük CPU & bellek kullanımı)
             "-pix_fmt", "yuv420p", // Mobil uyumluluk (Android/iOS native player)
             "-c:a", "aac", // Ses codec'ini de AAC'ye dönüştür (mobil uyum)
             "-b:a", "128k",
@@ -307,6 +335,9 @@ async function runFfmpegTranscode(inputPath, outputPath, durationSec) {
         const cleanErr = extractCleanErrorMessage(err);
         console.error(`[ffmpeg] Transcode başarısız oldu: ${cleanErr}`);
         throw new Error(`FFmpeg video dönüştürme hatası: ${cleanErr}`);
+    }
+    finally {
+        releaseLock();
     }
 }
 /**
