@@ -21,8 +21,10 @@ declare global {
  */
 export function AdSlot({ slotId, format = "auto", className = "" }: AdSlotProps) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_ADSENSE_CLIENT_ID;
+  const [mounted, setMounted] = React.useState(false);
 
   useEffect(() => {
+    setMounted(true);
     try {
       if (typeof window !== "undefined" && clientId) {
         (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -31,6 +33,8 @@ export function AdSlot({ slotId, format = "auto", className = "" }: AdSlotProps)
       console.error("[AdSense push error]:", err);
     }
   }, [clientId, slotId]);
+
+  if (!mounted) return null;
 
   return (
     <div className={`w-full max-w-3xl mx-auto my-6 p-3 rounded-2xl bg-slate-900/40 border border-slate-800/80 backdrop-blur-sm text-center relative overflow-hidden ${className}`}>
