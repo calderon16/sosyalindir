@@ -56,20 +56,8 @@ export function AdSlot({ slotId, format = "auto", className = "" }: AdSlotProps)
 
     observer.observe(insRef.current, { attributes: true });
 
-    // Fallback: 2.5 saniye sonra iframe oluşmuşsa veya scrollHeight > 0 ise reklam yüklendi kabul et
-    const timeout = setTimeout(() => {
-      if (insRef.current) {
-        const hasIframe = insRef.current.querySelector("iframe");
-        const hasHeight = insRef.current.scrollHeight > 10;
-        if (hasIframe || hasHeight) {
-          setIsAdLoaded(true);
-        }
-      }
-    }, 2500);
-
     return () => {
       observer.disconnect();
-      clearTimeout(timeout);
     };
   }, [mounted]);
 
