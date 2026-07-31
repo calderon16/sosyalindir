@@ -1,4 +1,5 @@
 "use client";
+// Vercel auto-deploy test comment
 
 import React, { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
